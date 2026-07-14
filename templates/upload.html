@@ -1,0 +1,490 @@
+{% extends "base.html" %}
+
+{% block title %}CardioSync - Upload Dataset{% endblock %}
+
+{% block page_title %}Dataset Seeding & Cleaning Pipeline{% endblock %}
+{% block page_subtitle %}Upload fresh patient diagnostic records to clean, validate, and retrain risk models.{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- LEFT COLUMN: DROP ZONE -->
+    <div class="col-lg-7">
+        <article class="glass-card h-100">
+            <h3 class="card-title"><i class="fas fa-file-csv"></i> CSV Upload Interface</h3>
+            <p style="color:var(--text-secondary); font-size:13.5px; margin-bottom: 24px;">
+                Upload your heart disease clinical data file (`.csv`). The pipeline will automatically map column headers, perform imputation on empty fields, deduplicate rows, binarize output indicators, and immediately re-train the predictive classifier.
+            </p>
+            
+            <div id="drop-zone" style="border: 2px dashed var(--primary); border-radius: var(--radius-lg); padding: 50px 30px; text-align: center; background: rgba(99,102,241,0.02); cursor: pointer; transition: var(--transition);">
+                <i class="fas fa-cloud-upload-alt" style="font-size: 64px; color: var(--primary); margin-bottom: 16px;"></i>
+                <h4 style="font-size: 18px; color: var(--text-primary); margin-bottom: 8px;">Drag & Drop CSV File Here</h4>
+                <p style="color:var(--text-secondary); font-size:13px; margin-bottom: 16px;">or click to browse local files</p>
+                <input type="file" id="file-input" accept=".csv" style="display: none;">
+                <span class="badge bg-secondary" style="font-size: 11px;">Supported: heart.csv, processed.cleveland.data</span>
+            </div>
+            
+            <!-- Upload progress/status bar -->
+            <div id="upload-progress-container" class="mt-4" style="display: none;">
+                <div class="d-flex justify-content-between mb-2">
+                    <span id="upload-status-text" style="font-size:13px; font-weight:600; color:var(--text-secondary);">Processing...</span>
+                    <span id="upload-percentage" style="font-size:13px; font-weight:700; color:var(--primary);">0%</span>
+                </div>
+                <div class="progress" style="height: 10px; background-color: var(--border-color); border-radius: 5px; overflow: hidden;">
+                    <div id="upload-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated bg-primary" role="progressbar" style="width: 0%"></div>
+                </div>
+            </div>
+        </article>
+    </div>
+    
+    <!-- RIGHT COLUMN: PROCESSING SUMMARY -->
+    <div class="col-lg-5">
+        <article class="glass-card h-100" id="summary-card" style="min-height: 380px; display:flex; flex-direction:column; justify-content:space-between;">
+            <div>
+                <h3 class="card-title" id="summary-title"><i class="fas fa-clipboard-check"></i> Pipeline Summary</h3>
+                
+                <!-- Initial placeholder -->
+                <div id="summary-placeholder" class="text-center py-5" style="color: var(--text-muted);">
+                    <i class="fas fa-chart-line" style="font-size: 54px; margin-bottom:16px;"></i>
+                    <p style="font-size: 13.5px; font-weight:600;">No file processed yet.</p>
+                    <p style="font-size:11.5px; max-width:240px; margin:4px auto 0;">Upload a heart disease CSV to see records diagnostics logs and cleaning counts.</p>
+                </div>
+                
+                <!-- Summary Data (Hidden Initially) -->
+                <div id="summary-details" style="display: none;">
+                    <div class="alert alert-success d-flex align-items-center mb-4" style="border:none;">
+                        <i class="fas fa-check-circle me-2" style="font-size: 20px;"></i>
+                        <div>
+                            <strong>Dataset Cleaned & Seeded!</strong>
+                            <p class="mb-0" style="font-size: 12px; margin-top:2px;">The database has been updated and the ML prediction weights re-calculated.</p>
+                        </div>
+                    </div>
+                    
+                    <ul class="list-group list-group-flush mb-4" style="background:transparent;">
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-0 bg-transparent" style="border-bottom-color:var(--border-color);">
+                            <span style="color:var(--text-secondary); font-size:13.5px;">Raw Rows Read</span>
+                            <span class="badge bg-secondary rounded-pill" id="stat-raw">0</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-0 bg-transparent" style="border-bottom-color:var(--border-color);">
+                            <span style="color:var(--text-secondary); font-size:13.5px;">Duplicate Records Removed</span>
+                            <span class="badge bg-warning rounded-pill" id="stat-duplicates">0</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-0 bg-transparent" style="border-bottom-color:var(--border-color);">
+                            <span style="color:var(--text-secondary); font-size:13.5px;">Missing Values Filled (Imputed)</span>
+                            <span class="badge bg-info rounded-pill" id="stat-missing">0</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-0 bg-transparent" style="border-bottom-color:var(--border-color);">
+                            <span style="color:var(--text-secondary); font-size:13.5px;">Statistical Outliers Adjusted</span>
+                            <span class="badge bg-secondary rounded-pill" id="stat-outliers">0</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-0 bg-transparent" style="border-bottom:none;">
+                            <span style="color:var(--text-primary); font-weight:700; font-size:14px;">Committed DB Records</span>
+                            <span class="badge bg-success rounded-pill" id="stat-clean" style="font-size: 12px; font-weight:800;">0</span>
+                        </li>
+                    </ul>
+                    
+                    <!-- Columns mapping check -->
+                    <div style="border-top: 1px solid var(--border-color); padding-top: 16px;">
+                        <h5 style="font-size: 11.5px; font-weight:800; color:var(--text-secondary); text-transform:uppercase; margin-bottom:8px;">Mapped Variables:</h5>
+                        <div id="stat-mapped-cols" style="display:flex; flex-wrap:wrap; gap:6px;">
+                            <!-- Filled by JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="summary-action-btn" class="mt-4" style="display: none;">
+                <button onclick="location.href='{{ url_for('dashboard') }}'" class="submit-btn w-100 justify-content-center mb-2">
+                    <i class="fas fa-eye"></i> View Updated Dashboard
+                </button>
+                <a href="{{ url_for('api_export') }}" class="story-btn w-100 justify-content-center text-decoration-none" style="display: inline-flex; font-size:13.5px; font-weight:700;">
+                    <i class="fas fa-file-export me-2"></i> Download Cleaned & Scaled Dataset
+                </a>
+            </div>
+        </article>
+    </div>
+</div>
+
+<!-- PATIENTS GRID DISPLAYER & INSPECTOR -->
+<div class="row g-4 mt-4">
+    <div class="col-12">
+        <article class="glass-card">
+            <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+                <h3 class="card-title mb-0"><i class="fas fa-database"></i> Database Records Inspector</h3>
+                
+                <div class="d-flex align-items-center gap-3 flex-wrap">
+                    <a href="{{ url_for('api_export') }}" class="story-btn text-decoration-none px-3 py-1.5" style="font-size:12.5px; display:inline-flex; align-items:center; font-weight:700;">
+                        <i class="fas fa-download me-2"></i> Export Preprocessed CSV
+                    </a>
+                    
+                    <div class="d-flex align-items-center gap-2">
+                        <span style="font-size:12.5px; color:var(--text-secondary); font-weight:700; text-transform:uppercase;"><i class="fas fa-search"></i> Search:</span>
+                        <input type="text" id="patients-search-input" class="text-input" placeholder="Search by Age, CP, Target..." style="padding: 4px 12px; font-size:13px; max-width: 240px; border-radius: var(--radius-sm);">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="table-responsive">
+                <table class="data-table mb-0" style="font-size:12.5px;">
+                    <thead>
+                        <tr style="border-bottom:1px solid var(--border-color);">
+                            <th class="ps-3">ID</th>
+                            <th>Age</th>
+                            <th>Sex</th>
+                            <th>CP Type</th>
+                            <th>BP (mm Hg)</th>
+                            <th>Chol (mg/dl)</th>
+                            <th>Fbs</th>
+                            <th>ECG</th>
+                            <th>Max HR</th>
+                            <th>Angina</th>
+                            <th>Oldpeak</th>
+                            <th>Slope</th>
+                            <th>Vessels</th>
+                            <th>Thalassemia</th>
+                            <th class="pe-3">Diagnostic Target</th>
+                        </tr>
+                    </thead>
+                    <tbody id="patients-table-body">
+                        <!-- Loaded dynamically -->
+                        <tr>
+                            <td colspan="15" class="text-center py-4 text-muted">
+                                <i class="fas fa-spinner fa-spin me-2"></i> Loading database patient records...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Pagination Controls -->
+            <div class="d-flex justify-content-between align-items-center mt-3 pt-3 flex-wrap gap-2" style="border-top: 1px solid var(--border-color);">
+                <div style="font-size:12.5px; color:var(--text-secondary);" id="patients-page-info">
+                    Showing <strong>0-0</strong> of <strong>0</strong> records.
+                </div>
+                <nav>
+                    <ul class="pagination pagination-sm m-0" style="gap:4px;" id="patients-pagination">
+                        <!-- Loaded dynamically -->
+                    </ul>
+                </nav>
+            </div>
+        </article>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+    const progressContainer = document.getElementById('upload-progress-container');
+    const statusText = document.getElementById('upload-status-text');
+    const percentageText = document.getElementById('upload-percentage');
+    const progressBar = document.getElementById('upload-progress-bar');
+    
+    const summaryPlaceholder = document.getElementById('summary-placeholder');
+    const summaryDetails = document.getElementById('summary-details');
+    const summaryActionBtn = document.getElementById('summary-action-btn');
+    
+    // Grid variables
+    let patientsData = [];
+    let filteredPatients = [];
+    let currentPage = 1;
+    const recordsPerPage = 10;
+    
+    const tableBody = document.getElementById('patients-table-body');
+    const searchInput = document.getElementById('patients-search-input');
+    const pageInfo = document.getElementById('patients-page-info');
+    const paginationUl = document.getElementById('patients-pagination');
+    
+    // Drag Zone interactions
+    dropZone.addEventListener('click', () => fileInput.click());
+    
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.style.borderColor = '#818cf8';
+        dropZone.style.background = 'rgba(99,102,241,0.06)';
+    });
+    
+    dropZone.addEventListener('dragleave', () => {
+        dropZone.style.borderColor = 'var(--primary)';
+        dropZone.style.background = 'rgba(99,102,241,0.02)';
+    });
+    
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.style.borderColor = 'var(--primary)';
+        dropZone.style.background = 'rgba(99,102,241,0.02)';
+        
+        if (e.dataTransfer.files.length > 0) {
+            handleFileUpload(e.dataTransfer.files[0]);
+        }
+    });
+    
+    fileInput.addEventListener('change', () => {
+        if (fileInput.files.length > 0) {
+            handleFileUpload(fileInput.files[0]);
+        }
+    });
+    
+    function handleFileUpload(file) {
+        if (!file.name.endsWith('.csv')) {
+            alert("Only CSV datasets are supported!");
+            return;
+        }
+        
+        progressContainer.style.display = 'block';
+        statusText.textContent = "Uploading file...";
+        percentageText.textContent = "0%";
+        progressBar.style.width = '0%';
+        
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '/upload', true);
+        
+        xhr.upload.addEventListener('progress', (e) => {
+            if (e.lengthComputable) {
+                const percent = Math.round((e.loaded / e.total) * 100);
+                const displayPercent = Math.round(percent * 0.9);
+                percentageText.textContent = displayPercent + "%";
+                progressBar.style.width = displayPercent + "%";
+                if (displayPercent > 80) {
+                    statusText.textContent = "Data pipeline executing: cleaning & mapping...";
+                }
+            }
+        });
+        
+        xhr.onload = function() {
+            if (xhr.status === 200) {
+                const data = JSON.parse(xhr.responseText);
+                if (data.success) {
+                    percentageText.textContent = "100%";
+                    progressBar.style.width = "100%";
+                    statusText.textContent = "Complete!";
+                    
+                    summaryPlaceholder.style.display = 'none';
+                    summaryDetails.style.display = 'block';
+                    summaryActionBtn.style.display = 'block';
+                    
+                    document.getElementById('stat-raw').textContent = data.stats.total_rows_raw;
+                    document.getElementById('stat-duplicates').textContent = data.stats.duplicates_removed;
+                    document.getElementById('stat-missing').textContent = data.stats.missing_values_filled;
+                    document.getElementById('stat-outliers').textContent = data.stats.outliers_detected;
+                    document.getElementById('stat-clean').textContent = data.stats.rows_cleaned;
+                    
+                    const mappedContainer = document.getElementById('stat-mapped-cols');
+                    mappedContainer.innerHTML = '';
+                    data.stats.columns_mapped.forEach(col => {
+                        const span = document.createElement('span');
+                        span.className = 'badge bg-primary-subtle text-primary border border-primary-subtle';
+                        span.style.padding = '4px 8px';
+                        span.style.fontSize = '11px';
+                        span.textContent = col.toUpperCase();
+                        mappedContainer.appendChild(span);
+                    });
+                    
+                    // Automatically reload dynamic grid!
+                    loadPatientsList();
+                } else {
+                    handleUploadError(data.error);
+                }
+            } else {
+                let err = "Network connection failed.";
+                try {
+                    const data = JSON.parse(xhr.responseText);
+                    err = data.error;
+                } catch(e) {}
+                handleUploadError(err);
+            }
+        };
+        
+        xhr.onerror = function() {
+            handleUploadError("An error occurred during upload.");
+        };
+        
+        xhr.send(formData);
+    }
+    
+    function handleUploadError(errMsg) {
+        progressContainer.style.display = 'none';
+        alert("Pipeline Execution Failed:\n" + errMsg);
+    }
+
+    // --- DYNAMIC PATIENTS TABLE FUNCTIONS ---
+    function loadPatientsList() {
+        fetch('/api/patients')
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    patientsData = data.patients;
+                    applyFiltersAndRender();
+                } else {
+                    tableBody.innerHTML = `<tr><td colspan="15" class="text-center py-3 text-danger"><i class="fas fa-exclamation-circle me-1"></i> Error: ${data.error}</td></tr>`;
+                }
+            })
+            .catch(err => {
+                console.error("Error fetching patients list:", err);
+                tableBody.innerHTML = `<tr><td colspan="15" class="text-center py-3 text-danger"><i class="fas fa-exclamation-circle me-1"></i> Connection failed to load records inspector.</td></tr>`;
+            });
+    }
+    
+    function applyFiltersAndRender() {
+        const query = searchInput.value.toLowerCase().trim();
+        
+        if (!query) {
+            filteredPatients = [...patientsData];
+        } else {
+            filteredPatients = patientsData.filter(p => {
+                const sexText = p.sex === 1 ? 'male' : 'female';
+                const targetText = p.target === 1 ? 'disease' : 'normal';
+                
+                let cpText = 'asymptomatic';
+                if (p.cp === 1) cpText = 'typical angina';
+                else if (p.cp === 2) cpText = 'atypical angina';
+                else if (p.cp === 3) cpText = 'non-anginal';
+                
+                let ecgText = 'normal';
+                if (p.restecg === 1) ecgText = 'st-t abnormality';
+                else if (p.restecg === 2) ecgText = 'lv hypertrophy';
+                
+                let thalText = 'reversible';
+                if (p.thal === 3) thalText = 'normal';
+                else if (p.thal === 6) thalText = 'fixed';
+                
+                return p.id.toString().includes(query) ||
+                       p.age.toString().includes(query) ||
+                       sexText.includes(query) ||
+                       cpText.includes(query) ||
+                       p.trestbps.toString().includes(query) ||
+                       p.chol.toString().includes(query) ||
+                       ecgText.includes(query) ||
+                       p.thalach.toString().includes(query) ||
+                       thalText.includes(query) ||
+                       targetText.includes(query);
+            });
+        }
+        
+        currentPage = 1;
+        renderTable();
+    }
+    
+    function renderTable() {
+        tableBody.innerHTML = '';
+        const len = filteredPatients.length;
+        
+        if (len === 0) {
+            tableBody.innerHTML = `<tr><td colspan="15" class="text-center py-4 text-muted"><i class="fas fa-folder-open me-2"></i> No matching records found.</td></tr>`;
+            pageInfo.innerHTML = `Showing <strong>0-0</strong> of <strong>0</strong> records.`;
+            paginationUl.innerHTML = '';
+            return;
+        }
+        
+        const start = (currentPage - 1) * recordsPerPage;
+        const end = Math.min(start + recordsPerPage, len);
+        const sliced = filteredPatients.slice(start, end);
+        
+        sliced.forEach(p => {
+            const tr = document.createElement('tr');
+            tr.style.borderBottom = '1px solid var(--border-color)';
+            
+            let cpText = 'Asymptomatic';
+            if (p.cp === 1) cpText = 'Typical Angina';
+            else if (p.cp === 2) cpText = 'Atypical Angina';
+            else if (p.cp === 3) cpText = 'Non-Anginal';
+            
+            let ecgText = 'Normal';
+            if (p.restecg === 1) ecgText = 'ST-T Abn';
+            else if (p.restecg === 2) ecgText = 'LV Hyper';
+            
+            let thalText = 'Reversible (7)';
+            if (p.thal === 3) thalText = 'Normal (3)';
+            else if (p.thal === 6) thalText = 'Fixed (6)';
+            
+            tr.innerHTML = `
+                <td class="ps-3 font-monospace text-muted">#${p.id}</td>
+                <td>${p.age}</td>
+                <td>${p.sex === 1 ? 'Male' : 'Female'}</td>
+                <td>${cpText}</td>
+                <td>${p.trestbps}</td>
+                <td>${p.chol}</td>
+                <td>${p.fbs === 1 ? 'True' : 'False'}</td>
+                <td>${ecgText}</td>
+                <td>${p.thalach}</td>
+                <td>${p.exang === 1 ? 'Yes' : 'No'}</td>
+                <td>${p.oldpeak.toFixed(1)}</td>
+                <td>${p.slope}</td>
+                <td>${p.ca}</td>
+                <td>${thalText}</td>
+                <td class="pe-3">
+                    <span class="badge ${p.target === 1 ? 'bg-danger' : 'bg-success'}" style="font-size:10px;">
+                        ${p.target === 1 ? 'Disease' : 'Normal'}
+                    </span>
+                </td>
+            `;
+            tableBody.appendChild(tr);
+        });
+        
+        // Update page text
+        pageInfo.innerHTML = `Showing <strong>${start + 1}-${end}</strong> of <strong>${len}</strong> records.`;
+        
+        // Update Pagination controls
+        const totalPages = Math.ceil(len / recordsPerPage);
+        paginationUl.innerHTML = '';
+        
+        // Prev button
+        const prevLi = document.createElement('li');
+        prevLi.className = `page-item ${currentPage === 1 ? 'disabled' : ''}`;
+        prevLi.innerHTML = `<button class="page-link py-1 px-2 border-0 bg-transparent text-primary" style="font-weight:700;"><i class="fas fa-chevron-left"></i></button>`;
+        prevLi.onclick = () => {
+            if (currentPage > 1) {
+                currentPage--;
+                renderTable();
+            }
+        };
+        paginationUl.appendChild(prevLi);
+        
+        // Page index
+        const indexLi = document.createElement('li');
+        indexLi.className = 'page-item disabled';
+        indexLi.innerHTML = `<span class="page-link py-1 px-2 border-0 bg-transparent text-muted" style="font-size:12px;">${currentPage} / ${totalPages}</span>`;
+        paginationUl.appendChild(indexLi);
+        
+        // Next button
+        const nextLi = document.createElement('li');
+        nextLi.className = `page-item ${currentPage === totalPages ? 'disabled' : ''}`;
+        nextLi.innerHTML = `<button class="page-link py-1 px-2 border-0 bg-transparent text-primary" style="font-weight:700;"><i class="fas fa-chevron-right"></i></button>`;
+        nextLi.onclick = () => {
+            if (currentPage < totalPages) {
+                currentPage++;
+                renderTable();
+            }
+        };
+        paginationUl.appendChild(nextLi);
+    }
+    
+    // Bind search event
+    searchInput.addEventListener('keyup', applyFiltersAndRender);
+    
+    // Load lists on launch
+    loadPatientsList();
+</script>
+<style>
+    .bg-primary-subtle {
+        background-color: rgba(99, 102, 241, 0.1) !important;
+    }
+    .text-primary {
+        color: var(--primary) !important;
+    }
+    .border-primary-subtle {
+        border-color: rgba(99, 102, 241, 0.2) !important;
+    }
+    .page-link {
+        color: var(--primary);
+        cursor: pointer;
+    }
+    .page-item.disabled .page-link {
+        color: var(--text-muted);
+        cursor: default;
+    }
+</style>
+{% endblock %}

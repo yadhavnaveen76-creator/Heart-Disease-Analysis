@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block title %}CardioSync - Dataset Seeding History{% endblock %}
+
+{% block page_title %}Dataset Upload History{% endblock %}
+{% block page_subtitle %}Review administrative CSV seeder metadata and data cleaning statistics log.{% endblock %}
+
+{% block content %}
+<article class="glass-card">
+    <div class="card-title" style="justify-content: space-between;">
+        <span><i class="fas fa-history"></i> Dataset Pipeline Logs</span>
+        <button class="story-btn" onclick="location.href='{{ url_for('upload') }}'" style="font-size:12.5px; padding:6px 16px;">
+            <i class="fas fa-upload"></i> Upload New CSV
+        </button>
+    </div>
+    
+    {% if not datasets %}
+    <div class="text-center py-5" style="color: var(--text-muted);">
+        <i class="fas fa-folder-open" style="font-size: 60px; margin-bottom: 16px;"></i>
+        <h4 style="font-size: 16px; color: var(--text-primary); font-weight:700;">No Upload Logs Found</h4>
+        <p style="font-size:12.5px; max-width: 280px; margin: 4px auto 0;">
+            No CSV datasets have been uploaded yet. Head over to the Upload Data section to clean and seed your records.
+        </p>
+    </div>
+    {% else %}
+    <div class="table-responsive">
+        <table class="data-table" style="font-size:13px;">
+            <thead>
+                <tr style="border-bottom:1px solid var(--border-color);">
+                    <th class="ps-3">Log ID</th>
+                    <th>Filename</th>
+                    <th>Uploaded At</th>
+                    <th>Raw Rows</th>
+                    <th>Cleaned Rows</th>
+                    <th>Duplicates Dropped</th>
+                    <th>Imputed Cells</th>
+                    <th>Admin User</th>
+                    <th class="pe-3 text-center">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in datasets %}
+                <tr style="border-bottom:1px solid var(--border-color);">
+                    <td class="ps-3 font-monospace text-muted">#{{ d.id }}</td>
+                    <td style="font-weight:700; color: var(--primary);">{{ d.filename }}</td>
+                    <td class="text-nowrap">{{ d.upload_time }}</td>
+                    <td>{{ d.raw_rows }}</td>
+                    <td>{{ d.clean_rows }}</td>
+                    <td>
+                        {% if d.duplicates_removed > 0 %}
+                        <span class="badge bg-warning-subtle text-warning border border-warning-subtle">{{ d.duplicates_removed }}</span>
+                        {% else %}0
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if d.missing_filled > 0 %}
+                        <span class="badge bg-info-subtle text-info border border-info-subtle">{{ d.missing_filled }}</span>
+                        {% else %}0
+                        {% endif %}
+                    </td>
+                    <td style="font-weight:600;"><i class="far fa-user me-1"></i> {{ d.uploaded_by }}</td>
+                    <td class="pe-3 text-center">
+                        <form method="POST" action="{{ url_for('delete_dataset_log', did=d.id) }}" onsubmit="return confirm('Are you sure you want to delete this log entry from history? (This will not delete the patient data itself).');" class="m-0">
+                            <button type="submit" class="btn btn-sm btn-outline-danger" style="padding: 2px 8px; font-size:11px; font-weight:700;">
+                                <i class="fas fa-trash-alt"></i> Clear Log
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</article>
+
+<style>
+    .bg-warning-subtle { background-color: rgba(245, 158, 11, 0.08) !important; }
+    .bg-info-subtle { background-color: rgba(14, 165, 233, 0.08) !important; }
+    .border-warning-subtle { border-color: rgba(245, 158, 11, 0.2) !important; }
+    .border-info-subtle { border-color: rgba(14, 165, 233, 0.2) !important; }
+</style>
+{% endblock %}

@@ -1,0 +1,576 @@
+{% extends "base.html" %}
+
+{% block title %}CardioSync - Dashboard & Tableau Integration{% endblock %}
+
+{% block page_title %}Interactive Dashboards{% endblock %}
+{% block page_subtitle %}Explore clinical stats via the local CardioSync engine or embedded Tableau sheets.{% endblock %}
+
+{% block head %}
+<!-- ApexCharts CDN -->
+<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+<style>
+    .apexcharts-canvas { margin: 0 auto; }
+    .apexcharts-tooltip {
+        background: var(--bg-sidebar) !important;
+        border: 1px solid var(--border-color) !important;
+        box-shadow: var(--shadow-md) !important;
+        color: var(--text-primary) !important;
+    }
+    .apexcharts-tooltip-title {
+        background: var(--bg-app) !important;
+        border-bottom: 1px solid var(--border-color) !important;
+        color: var(--text-primary) !important;
+        font-weight: bold;
+    }
+    .dashboard-kpis-extended {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+    .charts-grid-extended {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+        gap: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- TABS TO SWITCH ENGINES -->
+<ul class="nav nav-pills mb-4" id="dashboard-tabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active me-2" id="local-tab" data-bs-toggle="pill" data-bs-target="#local-charts" type="button" role="tab" style="font-weight:700; border-radius:30px; border:1px solid var(--border-color); color:var(--text-primary); transition:var(--transition);">
+            <i class="fas fa-microchip me-2"></i> CardioSync Engine (Local)
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="tableau-tab" data-bs-toggle="pill" data-bs-target="#tableau-charts" type="button" role="tab" style="font-weight:700; border-radius:30px; border:1px solid var(--border-color); color:var(--text-primary); transition:var(--transition);" onclick="loadTableauIfConfigured()">
+            <i class="fas fa-chart-pie me-2"></i> Tableau Integration (Cloud)
+        </button>
+    </li>
+</ul>
+
+<!-- TAB CONTENT AREA -->
+<div class="tab-content" id="dashboard-tabs-content">
+    
+    <!-- TAB 1: LOCAL CHARTS -->
+    <div class="tab-pane fade show active" id="local-charts" role="tabpanel">
+        <div class="d-flex flex-column gap-4">
+            <!-- Filter Bar -->
+            <section class="filter-panel glass-card py-3 px-4">
+                <form id="filter-form" class="row align-items-center g-3 w-100 m-0" onsubmit="event.preventDefault(); updateDashboardData();">
+                    <div class="col-md-4 col-sm-6 p-0 pe-md-3">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="filter-label text-nowrap"><i class="fas fa-venus-mars"></i> Gender:</span>
+                            <select id="filter-sex" class="select-input w-100">
+                                <option value="all">All Patients</option>
+                                <option value="male">Male</option>
+                                <option value="female">Female</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-5 col-sm-6 p-0 pe-md-3">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="filter-label text-nowrap"><i class="fas fa-calendar-alt"></i> Age Range:</span>
+                            <div class="range-inputs w-100">
+                                <input type="number" id="filter-age-min" class="text-input w-100" value="20" min="0" max="100">
+                                <span class="range-separator px-1">to</span>
+                                <input type="number" id="filter-age-max" class="text-input w-100" value="85" min="0" max="100">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-3 col-sm-12 p-0 d-flex gap-2">
+                        <button type="submit" class="filter-btn w-100 justify-content-center">
+                            <i class="fas fa-filter"></i> Filter
+                        </button>
+                        <button type="button" onclick="resetFilters()" class="story-btn px-3" title="Reset Filters">
+                            <i class="fas fa-undo"></i>
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <!-- KPIs -->
+            <section class="dashboard-kpis-extended">
+                <div class="kpi-card total">
+                    <div class="kpi-info">
+                        <span class="kpi-value" id="kpi-total">0</span>
+                        <span class="kpi-label">Patient Count</span>
+                    </div>
+                    <div class="kpi-icon"><i class="fas fa-users"></i></div>
+                </div>
+                <div class="kpi-card risk">
+                    <div class="kpi-info">
+                        <span class="kpi-value" id="kpi-disease">0%</span>
+                        <span class="kpi-label">Cardiac Disease Rate</span>
+                    </div>
+                    <div class="kpi-icon"><i class="fas fa-heart-pulse"></i></div>
+                </div>
+                <div class="kpi-card chol">
+                    <div class="kpi-info">
+                        <span class="kpi-value" id="kpi-chol">0</span>
+                        <span class="kpi-label">Avg Cholesterol</span>
+                    </div>
+                    <div class="kpi-icon"><i class="fas fa-droplet"></i></div>
+                </div>
+                <div class="kpi-card rate">
+                    <div class="kpi-info">
+                        <span class="kpi-value" id="kpi-rate">0</span>
+                        <span class="kpi-label">Avg Max Heart Rate</span>
+                    </div>
+                    <div class="kpi-icon"><i class="fas fa-gauge-high"></i></div>
+                </div>
+                <!-- Extended KPIs: Smoking & BMI -->
+                <div class="kpi-card bg-info-subtle" style="border: 1px solid rgba(14, 165, 233, 0.2);">
+                    <div class="kpi-info">
+                        <span class="kpi-value" id="kpi-bmi" style="color: var(--info);">0</span>
+                        <span class="kpi-label">Avg BMI</span>
+                    </div>
+                    <div class="kpi-icon" style="color: var(--info);"><i class="fas fa-weight-scale"></i></div>
+                </div>
+                <div class="kpi-card bg-warning-subtle" style="border: 1px solid rgba(245, 158, 11, 0.2);">
+                    <div class="kpi-info">
+                        <span class="kpi-value" id="kpi-smoker" style="color: var(--warning);">0%</span>
+                        <span class="kpi-label">Smoker Rate</span>
+                    </div>
+                    <div class="kpi-icon" style="color: var(--warning);"><i class="fas fa-smoking"></i></div>
+                </div>
+            </section>
+
+            <!-- Chart Matrix Grid (10 charts represented) -->
+            <section class="charts-grid-extended">
+                <!-- 1. Age Distribution -->
+                <div class="glass-card chart-card">
+                    <h3 class="card-title"><i class="fas fa-chart-bar"></i> Age Group Prevalence</h3>
+                    <div class="chart-container" id="chart-age-prevalence"></div>
+                </div>
+                
+                <!-- 2. Gender Analysis -->
+                <div class="glass-card chart-card">
+                    <h3 class="card-title"><i class="fas fa-venus-mars"></i> Gender Risk Profiler</h3>
+                    <div class="chart-container" id="chart-gender"></div>
+                </div>
+                
+                <!-- 3. Cholesterol Analysis -->
+                <div class="glass-card chart-card">
+                    <h3 class="card-title"><i class="fas fa-droplet"></i> Cholesterol Brackets Rate</h3>
+                    <div class="chart-container" id="chart-cholesterol"></div>
+                </div>
+                
+                <!-- 4. Blood Pressure Distribution -->
+                <div class="glass-card chart-card">
+                    <h3 class="card-title"><i class="fas fa-heart"></i> Blood Pressure Distribution</h3>
+                    <div class="chart-container" id="chart-bp"></div>
+                </div>
+
+                <!-- 5. Smoking Analysis -->
+                <div class="glass-card chart-card">
+                    <h3 class="card-title"><i class="fas fa-smoking"></i> Smoking vs Cardiac Disease</h3>
+                    <div class="chart-container" id="chart-smoking"></div>
+                </div>
+                
+                <!-- 6. BMI Analysis -->
+                <div class="glass-card chart-card">
+                    <h3 class="card-title"><i class="fas fa-weight-scale"></i> BMI Category Risk</h3>
+                    <div class="chart-container" id="chart-bmi"></div>
+                </div>
+                
+                <!-- 7. Chest Pain Types -->
+                <div class="glass-card chart-card">
+                    <h3 class="card-title"><i class="fas fa-chart-pie"></i> Chest Pain Type Risk</h3>
+                    <div class="chart-container" id="chart-chest-pain"></div>
+                </div>
+                
+                <!-- 8. Exercise Induced Angina -->
+                <div class="glass-card chart-card">
+                    <h3 class="card-title"><i class="fas fa-child-running"></i> Exercise Induced Angina</h3>
+                    <div class="chart-container" id="chart-angina"></div>
+                </div>
+                
+                <!-- 9. Max Heart Rate vs Age -->
+                <div class="glass-card chart-card">
+                    <h3 class="card-title"><i class="fas fa-chart-area"></i> Max Heart Rate vs Age</h3>
+                    <div class="chart-container" id="chart-hr-scatter"></div>
+                </div>
+            </section>
+            
+            <!-- 10. Pearson Heatmap Shortcut Card -->
+            <article class="glass-card p-3 d-flex justify-content-between align-items-center flex-wrap gap-2" style="background: rgba(99, 102, 241, 0.04); border: 1px dashed var(--primary);">
+                <div style="font-size:13.5px; color:var(--text-secondary);">
+                    <strong>Looking for the Pearson Correlation Heatmap?</strong> We've built a dedicated statistics panel with full variable matrix logs.
+                </div>
+                <button onclick="location.href='{{ url_for('analytics') }}'" class="submit-btn py-2">
+                    <i class="fas fa-chart-pie"></i> Open Clinical Analytics
+                </button>
+            </article>
+        </div>
+    </div>
+    
+    <!-- TAB 2: TABLEAU EMBED -->
+    <div class="tab-pane fade" id="tableau-charts" role="tabpanel">
+        <div class="row g-4">
+            <!-- URL Configurations Panel -->
+            <div class="col-lg-3">
+                <article class="glass-card">
+                    <h3 class="card-title" style="font-size:16px;"><i class="fas fa-sliders"></i> Tableau Settings</h3>
+                    <p style="font-size:12px; color:var(--text-secondary); margin-bottom:16px;">
+                        Configure your Tableau Public embedded URL link below.
+                    </p>
+                    
+                    <div class="form-group mb-3">
+                        <label for="tableau-url" style="font-size:11px; font-weight:700; color:var(--text-secondary); text-transform:uppercase; margin-bottom:6px;">Embed Url</label>
+                        <input type="text" id="tableau-url" class="text-input w-100" style="font-size:12px; padding:6px 12px;" value="https://public.tableau.com/views/HeartDiseaseIndicators/Dashboard1" placeholder="Enter Tableau Public URL">
+                    </div>
+                    
+                    <button onclick="saveTableauConfig()" class="submit-btn w-100 justify-content-center py-2" style="font-size:13px;">
+                        <i class="fas fa-save"></i> Save & Reload
+                    </button>
+                    
+                    <div class="mt-4 p-3" style="background: rgba(0,0,0,0.02); border-radius: var(--radius-md); border:1px dashed var(--border-color);">
+                        <strong style="font-size:11.5px; color:var(--text-primary); display:block; margin-bottom:4px;"><i class="fas fa-circle-info"></i> Instructions</strong>
+                        <p style="font-size:11px; color:var(--text-secondary); margin-bottom:0; line-height:1.4;">
+                            Use our builder script `generate_tableau_workbook.py` to create a workbook, publish it to Tableau Public, and paste the URL here.
+                        </p>
+                    </div>
+                </article>
+            </div>
+            
+            <!-- Tableau Iframe Container -->
+            <div class="col-lg-9">
+                <article class="glass-card p-0 overflow-hidden" style="min-height: 600px; border-radius: var(--radius-lg); position:relative;">
+                    <div id="tableau-loading" style="position:absolute; top:0; left:0; width:100%; height:100%; background:var(--bg-sidebar); display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:100;">
+                        <i class="fas fa-spinner fa-spin" style="font-size:40px; color:var(--primary); margin-bottom:16px;"></i>
+                        <p style="color:var(--text-secondary); font-size:13px;">Loading Tableau Visualization sheets...</p>
+                    </div>
+                    <iframe id="tableau-iframe" src="" style="width:100%; height:620px; border:none; display:none;" onload="document.getElementById('tableau-loading').style.display='none'; this.style.display='block';"></iframe>
+                </article>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let charts = {};
+    
+    document.querySelectorAll('#dashboard-tabs button').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('#dashboard-tabs button').forEach(b => {
+                b.classList.remove('active');
+                b.style.backgroundColor = 'transparent';
+                b.style.borderColor = 'var(--border-color)';
+            });
+            this.classList.add('active');
+            this.style.backgroundColor = 'var(--primary-light)';
+            this.style.borderColor = 'rgba(99, 102, 241, 0.3)';
+        });
+    });
+    
+    document.getElementById('local-tab').style.backgroundColor = 'var(--primary-light)';
+    document.getElementById('local-tab').style.borderColor = 'rgba(99, 102, 241, 0.3)';
+
+    // --- TABLEAU FUNCTIONS ---
+    function saveTableauConfig() {
+        const url = document.getElementById('tableau-url').value.trim();
+        if (url) {
+            localStorage.setItem('tableau_embed_url', url);
+            loadTableauIfConfigured();
+        }
+    }
+    
+    function loadTableauIfConfigured() {
+        const iframe = document.getElementById('tableau-iframe');
+        const loader = document.getElementById('tableau-loading');
+        
+        let url = localStorage.getItem('tableau_embed_url');
+        if (!url) {
+            url = document.getElementById('tableau-url').value;
+            localStorage.setItem('tableau_embed_url', url);
+        } else {
+            document.getElementById('tableau-url').value = url;
+        }
+        
+        let embedUrl = url;
+        if (url.includes('public.tableau.com')) {
+            if (!url.includes('?:showVizHome=no')) {
+                const base = url.split('?')[0];
+                embedUrl = `${base}?:showVizHome=no&:embed=true&:device=desktop`;
+            }
+        }
+        
+        loader.style.display = 'flex';
+        iframe.style.display = 'none';
+        iframe.src = embedUrl;
+    }
+
+    // --- LOCAL CHART FUNCTIONS ---
+    function resetFilters() {
+        document.getElementById('filter-sex').value = 'all';
+        document.getElementById('filter-age-min').value = '20';
+        document.getElementById('filter-age-max').value = '85';
+        updateDashboardData();
+    }
+
+    function getChartThemeColors() {
+        const theme = document.documentElement.getAttribute('data-theme');
+        const isDark = theme === 'dark';
+        return {
+            text: isDark ? '#94a3b8' : '#64748b',
+            grid: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)',
+            tooltipTheme: isDark ? 'dark' : 'light'
+        };
+    }
+
+    function updateDashboardData() {
+        const sex = document.getElementById('filter-sex').value;
+        const ageMin = document.getElementById('filter-age-min').value;
+        const ageMax = document.getElementById('filter-age-max').value;
+        
+        document.querySelectorAll('.kpi-value').forEach(el => el.innerHTML = `<i class="fas fa-spinner fa-spin" style="font-size:18px;"></i>`);
+        
+        fetch(`/api/data?sex=${sex}&age_min=${ageMin}&age_max=${ageMax}`)
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('kpi-total').textContent = data.kpis.total;
+                document.getElementById('kpi-disease').textContent = data.kpis.disease_pct + '%';
+                document.getElementById('kpi-chol').textContent = data.kpis.avg_chol + ' mg/dl';
+                document.getElementById('kpi-rate').textContent = data.kpis.avg_thalach + ' bpm';
+                document.getElementById('kpi-bmi').textContent = data.kpis.avg_bmi;
+                document.getElementById('kpi-smoker').textContent = data.kpis.smoker_pct + '%';
+                
+                if (data.kpis.total === 0) {
+                    Object.values(charts).forEach(c => c.destroy());
+                    charts = {};
+                    return;
+                }
+                
+                renderOrUpdateCharts(data.charts);
+            })
+            .catch(err => console.error("Error loading dashboard data:", err));
+    }
+
+    function renderOrUpdateCharts(chartData) {
+        const themeColors = getChartThemeColors();
+        
+        // 1. Age Prevalence
+        const ageGroups = Object.keys(chartData.age_groups);
+        const ageTotals = ageGroups.map(g => chartData.age_groups[g].total);
+        const ageDiseases = ageGroups.map(g => chartData.age_groups[g].disease);
+        
+        const ageOptions = {
+            series: [
+                { name: 'Healthy', data: ageGroups.map((g, i) => ageTotals[i] - ageDiseases[i]) },
+                { name: 'Heart Disease', data: ageDiseases }
+            ],
+            chart: { type: 'bar', height: 260, stacked: true, background: 'transparent', toolbar: { show: false } },
+            colors: ['#3b82f6', '#f43f5e'],
+            plotOptions: { bar: { columnWidth: '45%', borderRadius: 4 } },
+            xaxis: { categories: ageGroups, labels: { style: { colors: themeColors.text } } },
+            yaxis: { labels: { style: { colors: themeColors.text } } },
+            grid: { borderColor: themeColors.grid },
+            legend: { position: 'top', labels: { colors: themeColors.text } },
+            dataLabels: { enabled: false },
+            theme: { mode: themeColors.tooltipTheme }
+        };
+        
+        if (charts.agePrevalence) { charts.agePrevalence.updateOptions(ageOptions); }
+        else { charts.agePrevalence = new ApexCharts(document.querySelector("#chart-age-prevalence"), ageOptions); charts.agePrevalence.render(); }
+        
+        // 2. Gender Analysis
+        const genderLabels = Object.keys(chartData.gender_groups);
+        const genderNormal = genderLabels.map(g => chartData.gender_groups[g].normal);
+        const genderDisease = genderLabels.map(g => chartData.gender_groups[g].disease);
+        
+        const genderOptions = {
+            series: [
+                { name: 'Normal', data: genderNormal },
+                { name: 'Heart Disease', data: genderDisease }
+            ],
+            chart: { type: 'bar', height: 260, background: 'transparent', toolbar: { show: false } },
+            colors: ['#10b981', '#ef4444'],
+            plotOptions: { bar: { horizontal: false, columnWidth: '45%', borderRadius: 4 } },
+            xaxis: { categories: genderLabels, labels: { style: { colors: themeColors.text } } },
+            yaxis: { labels: { style: { colors: themeColors.text } } },
+            grid: { borderColor: themeColors.grid },
+            legend: { position: 'top', labels: { colors: themeColors.text } },
+            dataLabels: { enabled: false },
+            theme: { mode: themeColors.tooltipTheme }
+        };
+        
+        if (charts.gender) { charts.gender.updateOptions(genderOptions); }
+        else { charts.gender = new ApexCharts(document.querySelector("#chart-gender"), genderOptions); charts.gender.render(); }
+
+        // 3. Cholesterol
+        const cholBrackets = Object.keys(chartData.cholesterol);
+        const cholRates = cholBrackets.map(b => {
+            const total = chartData.cholesterol[b].total;
+            return total > 0 ? parseFloat(((chartData.cholesterol[b].disease / total) * 100).toFixed(1)) : 0;
+        });
+        
+        const cholOptions = {
+            series: [{ name: 'Disease Rate (%)', data: cholRates }],
+            chart: { type: 'bar', height: 260, background: 'transparent', toolbar: { show: false } },
+            colors: ['#6366f1'],
+            plotOptions: { bar: { borderRadius: 6, dataLabels: { position: 'top' } } },
+            dataLabels: { enabled: true, formatter: val => val + "%", style: { fontSize: '11px', colors: [themeColors.text] }, offsetY: -16 },
+            xaxis: { categories: cholBrackets, labels: { style: { colors: themeColors.text } } },
+            yaxis: { labels: { formatter: val => val + "%", style: { colors: themeColors.text } } },
+            grid: { borderColor: themeColors.grid },
+            theme: { mode: themeColors.tooltipTheme }
+        };
+        
+        if (charts.cholesterol) { charts.cholesterol.updateOptions(cholOptions); }
+        else { charts.cholesterol = new ApexCharts(document.querySelector("#chart-cholesterol"), cholOptions); charts.cholesterol.render(); }
+
+        // 4. Blood Pressure
+        const bpBrackets = Object.keys(chartData.blood_pressure);
+        const bpRates = bpBrackets.map(b => {
+            const total = chartData.blood_pressure[b].total;
+            return total > 0 ? parseFloat(((chartData.blood_pressure[b].disease / total) * 100).toFixed(1)) : 0;
+        });
+        
+        const bpOptions = {
+            series: [{ name: 'Disease Rate (%)', data: bpRates }],
+            chart: { type: 'line', height: 260, background: 'transparent', toolbar: { show: false } },
+            colors: ['#ec4899'],
+            stroke: { curve: 'smooth', width: 3 },
+            markers: { size: 4 },
+            xaxis: { categories: bpBrackets, labels: { style: { colors: themeColors.text } } },
+            yaxis: { labels: { formatter: val => val + "%", style: { colors: themeColors.text } } },
+            grid: { borderColor: themeColors.grid },
+            theme: { mode: themeColors.tooltipTheme }
+        };
+        
+        if (charts.bp) { charts.bp.updateOptions(bpOptions); }
+        else { charts.bp = new ApexCharts(document.querySelector("#chart-bp"), bpOptions); charts.bp.render(); }
+
+        // 5. Smoking vs Disease
+        const smokeLabels = Object.keys(chartData.smoking_groups);
+        const smokeNormal = smokeLabels.map(s => chartData.smoking_groups[s].normal);
+        const smokeDisease = smokeLabels.map(s => chartData.smoking_groups[s].disease);
+        
+        const smokeOptions = {
+            series: [
+                { name: 'Healthy', data: smokeNormal },
+                { name: 'Heart Disease', data: smokeDisease }
+            ],
+            chart: { type: 'bar', height: 260, background: 'transparent', toolbar: { show: false } },
+            colors: ['#0ea5e9', '#f97316'],
+            plotOptions: { bar: { columnWidth: '45%', borderRadius: 4 } },
+            xaxis: { categories: smokeLabels, labels: { style: { colors: themeColors.text } } },
+            yaxis: { labels: { style: { colors: themeColors.text } } },
+            grid: { borderColor: themeColors.grid },
+            legend: { position: 'top', labels: { colors: themeColors.text } },
+            dataLabels: { enabled: false },
+            theme: { mode: themeColors.tooltipTheme }
+        };
+        
+        if (charts.smoking) { charts.smoking.updateOptions(smokeOptions); }
+        else { charts.smoking = new ApexCharts(document.querySelector("#chart-smoking"), smokeOptions); charts.smoking.render(); }
+
+        // 6. BMI Analysis
+        const bmiBrackets = Object.keys(chartData.bmi_groups);
+        const bmiRates = bmiBrackets.map(b => {
+            const total = chartData.bmi_groups[b].total;
+            return total > 0 ? parseFloat(((chartData.bmi_groups[b].disease / total) * 100).toFixed(1)) : 0;
+        });
+        
+        const bmiOptions = {
+            series: bmiRates,
+            chart: { type: 'pie', height: 260, background: 'transparent' },
+            colors: ['#10b981', '#f59e0b', '#ef4444'],
+            labels: bmiBrackets,
+            legend: { position: 'bottom', labels: { colors: themeColors.text } },
+            theme: { mode: themeColors.tooltipTheme }
+        };
+        
+        if (charts.bmi) { charts.bmi.updateOptions(bmiOptions); }
+        else { charts.bmi = new ApexCharts(document.querySelector("#chart-bmi"), bmiOptions); charts.bmi.render(); }
+
+        // 7. Chest Pain
+        const cpTypes = Object.keys(chartData.chest_pain);
+        const cpDiseaseRates = cpTypes.map(type => {
+            const data = chartData.chest_pain[type];
+            const total = data.normal + data.disease;
+            return total > 0 ? parseFloat(((data.disease / total) * 100).toFixed(1)) : 0;
+        });
+        
+        const cpOptions = {
+            series: cpDiseaseRates,
+            chart: { type: 'radialBar', height: 260, background: 'transparent' },
+            plotOptions: {
+                radialBar: {
+                    dataLabels: {
+                        name: { fontSize: '14px', color: themeColors.text },
+                        value: { fontSize: '12px', color: themeColors.text },
+                        total: { show: true, label: 'Angina Risk', color: themeColors.text, formatter: () => 'CP Risk' }
+                    }
+                }
+            },
+            colors: ['#ef4444', '#f59e0b', '#3b82f6', '#10b981'],
+            labels: cpTypes,
+            legend: { show: true, position: 'bottom', labels: { colors: themeColors.text } },
+            theme: { mode: themeColors.tooltipTheme }
+        };
+        
+        if (charts.chestPain) { charts.chestPain.updateOptions(cpOptions); }
+        else { charts.chestPain = new ApexCharts(document.querySelector("#chart-chest-pain"), cpOptions); charts.chestPain.render(); }
+
+        // 8. Angina Induced
+        const anginaLabels = Object.keys(chartData.angina_groups);
+        const anginaNormal = anginaLabels.map(a => chartData.angina_groups[a].normal);
+        const anginaDisease = anginaLabels.map(a => chartData.angina_groups[a].disease);
+        
+        const anginaOptions = {
+            series: [
+                { name: 'Normal', data: anginaNormal },
+                { name: 'Heart Disease', data: anginaDisease }
+            ],
+            chart: { type: 'bar', height: 260, stacked: true, stackType: '100%', background: 'transparent', toolbar: { show: false } },
+            colors: ['#a855f7', '#f43f5e'],
+            plotOptions: { bar: { columnWidth: '40%' } },
+            xaxis: { categories: anginaLabels, labels: { style: { colors: themeColors.text } } },
+            yaxis: { labels: { style: { colors: themeColors.text } } },
+            grid: { borderColor: themeColors.grid },
+            legend: { position: 'top', labels: { colors: themeColors.text } },
+            theme: { mode: themeColors.tooltipTheme }
+        };
+        
+        if (charts.angina) { charts.angina.updateOptions(anginaOptions); }
+        else { charts.angina = new ApexCharts(document.querySelector("#chart-angina"), anginaOptions); charts.angina.render(); }
+
+        // 9. HR Scatter
+        const normalPoints = chartData.scatter.filter(p => p.target === 0).map(p => ({ x: p.x, y: p.y }));
+        const diseasePoints = chartData.scatter.filter(p => p.target === 1).map(p => ({ x: p.x, y: p.y }));
+        
+        const hrOptions = {
+            series: [
+                { name: 'Normal', data: normalPoints },
+                { name: 'Heart Disease', data: diseasePoints }
+            ],
+            chart: { type: 'scatter', height: 260, zoom: { enabled: true, type: 'xy' }, background: 'transparent', toolbar: { show: false } },
+            colors: ['#10b981', '#f43f5e'],
+            xaxis: { tickAmount: 8, title: { text: 'Age (Years)', style: { color: themeColors.text } }, labels: { style: { colors: themeColors.text } } },
+            yaxis: { title: { text: 'Max HR (bpm)', style: { color: themeColors.text } }, labels: { style: { colors: themeColors.text } } },
+            grid: { borderColor: themeColors.grid },
+            legend: { position: 'top', labels: { colors: themeColors.text } },
+            theme: { mode: themeColors.tooltipTheme }
+        };
+        
+        if (charts.hrScatter) { charts.hrScatter.updateOptions(hrOptions); }
+        else { charts.hrScatter = new ApexCharts(document.querySelector("#chart-hr-scatter"), hrOptions); charts.hrScatter.render(); }
+    }
+
+    window.addEventListener('themeChanged', function() {
+        if (Object.keys(charts).length > 0) {
+            updateDashboardData();
+        }
+    });
+
+    updateDashboardData();
+</script>
+{% endblock %}

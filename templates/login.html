@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block title %}CardioSync - Admin Login{% endblock %}
+
+{% block page_title %}Administrator Login{% endblock %}
+{% block page_subtitle %}Access secure data pipeline administration and file uploading tools.{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-center align-items-center" style="min-height: 55vh; padding: 20px;">
+    <article class="glass-card" style="max-width: 420px; width: 100%; animation: fadeIn 0.4s ease-out;">
+        <div class="text-center mb-4">
+            <div class="brand-icon mx-auto mb-3" style="width: 52px; height: 52px; font-size: 26px;">
+                <i class="fas fa-lock"></i>
+            </div>
+            <h3 style="font-weight: 800; color: var(--text-primary);">Sign In</h3>
+            <p style="color: var(--text-secondary); font-size: 13.5px;">Authenticate to manage clinical datasets.</p>
+        </div>
+        
+        <form method="POST" action="{{ url_for('login', next=request.args.get('next')) }}">
+            <div class="mb-3 form-group">
+                <label for="username" class="form-label" style="font-weight: 700; font-size: 12px; color: var(--text-secondary); text-transform: uppercase;">Username</label>
+                <div class="input-group">
+                    <span class="input-group-text" style="background-color: var(--bg-app); border: 1px solid var(--border-color); color: var(--text-secondary); border-radius: var(--radius-md) 0 0 var(--radius-md);">
+                        <i class="fas fa-user"></i>
+                    </span>
+                    <input type="text" class="form-control" id="username" name="username" placeholder="Enter username" required style="border-radius: 0 var(--radius-md) var(--radius-md) 0; border: 1px solid var(--border-color); background-color: var(--bg-sidebar); color: var(--text-primary);">
+                </div>
+            </div>
+            
+            <div class="mb-4 form-group">
+                <label for="password" class="form-label" style="font-weight: 700; font-size: 12px; color: var(--text-secondary); text-transform: uppercase;">Password</label>
+                <div class="input-group">
+                    <span class="input-group-text" style="background-color: var(--bg-app); border: 1px solid var(--border-color); color: var(--text-secondary); border-radius: var(--radius-md) 0 0 var(--radius-md);">
+                        <i class="fas fa-key"></i>
+                    </span>
+                    <input type="password" class="form-control" id="password" name="password" placeholder="Enter password" required style="border-radius: 0 var(--radius-md) var(--radius-md) 0; border: 1px solid var(--border-color); background-color: var(--bg-sidebar); color: var(--text-primary);">
+                </div>
+            </div>
+            
+            <button type="submit" class="submit-btn w-100 justify-content-center py-2" style="font-size: 14.5px;">
+                <i class="fas fa-sign-in-alt"></i> Login
+            </button>
+        </form>
+        
+        <div class="text-center mt-3">
+            <a href="#" id="toggle-admin-creds" style="font-size: 12px; font-weight: 700; color: var(--primary); text-decoration: none; display: inline-block;">
+                <i class="fas fa-key"></i> Show Admin Credentials
+            </a>
+        </div>
+        
+        <div id="admin-creds" class="mt-3 p-3 text-center" style="display: none; background-color: rgba(99, 102, 241, 0.05); border: 1px dashed rgba(99, 102, 241, 0.2); border-radius: var(--radius-md);">
+            <strong style="color: var(--primary); font-size: 12px; display:block; margin-bottom: 4px;">Default Developer Credentials</strong>
+            <p style="color: var(--text-secondary); font-size: 12px; margin-bottom: 8px;">
+                Username: <code>admin</code><br>
+                Password: <code>admin123</code>
+            </p>
+            <button type="button" class="btn btn-sm btn-primary" onclick="autofillAdmin()" style="font-size: 11px; padding: 2px 10px; border-radius: 20px; font-weight: 700; background: var(--primary); border: none;">
+                <i class="fas fa-magic"></i> Auto-fill Login
+            </button>
+        </div>
+
+        <script>
+            document.getElementById('toggle-admin-creds').addEventListener('click', function(e) {
+                e.preventDefault();
+                const creds = document.getElementById('admin-creds');
+                if (creds.style.display === 'none') {
+                    creds.style.display = 'block';
+                    this.innerHTML = '<i class="fas fa-eye-slash"></i> Hide Admin Credentials';
+                } else {
+                    creds.style.display = 'none';
+                    this.innerHTML = '<i class="fas fa-key"></i> Show Admin Credentials';
+                }
+            });
+
+            function autofillAdmin() {
+                document.getElementById('username').value = 'admin';
+                document.getElementById('password').value = 'admin123';
+            }
+        </script>
+    </article>
+</div>
+
+<style>
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(15px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .input-group-text {
+        display: flex;
+        align-items: center;
+    }
+</style>
+{% endblock %}

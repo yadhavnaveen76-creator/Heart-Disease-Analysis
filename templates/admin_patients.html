@@ -1,0 +1,450 @@
+{% extends "base.html" %}
+
+{% block title %}CardioSync - Manage Patients Records{% endblock %}
+
+{% block page_title %}Patient Database Records{% endblock %}
+{% block page_subtitle %}Perform CRUD administration operations on heart disease patient entries.{% endblock %}
+
+{% block content %}
+<!-- HEADER ACTION BAR -->
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+    <div style="font-size: 14.5px; color: var(--text-secondary); font-weight:600;">
+        Showing <strong>{{ patients|length }}</strong> records of <strong>{{ total_records }}</strong> total.
+    </div>
+    
+    <button class="submit-btn" data-bs-toggle="modal" data-bs-target="#addPatientModal">
+        <i class="fas fa-plus"></i> Add New Patient
+    </button>
+</div>
+
+<!-- PATIENTS TABLE -->
+<article class="glass-card p-0 overflow-hidden mb-4">
+    <div class="table-responsive">
+        <table class="data-table mb-0" style="font-size:12.5px;">
+            <thead>
+                <tr style="border-bottom:1px solid var(--border-color);">
+                    <th class="ps-4">ID</th>
+                    <th>Age</th>
+                    <th>Sex</th>
+                    <th>CP Type</th>
+                    <th>BP (mm Hg)</th>
+                    <th>Chol (mg/dl)</th>
+                    <th>Fbs</th>
+                    <th>ECG</th>
+                    <th>Max HR</th>
+                    <th>Angina</th>
+                    <th>Oldpeak</th>
+                    <th>Slope</th>
+                    <th>Vessels</th>
+                    <th>Thal</th>
+                    <th>Target</th>
+                    <th class="pe-4 text-center">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in patients %}
+                <tr id="row-{{ p.id }}" style="border-bottom:1px solid var(--border-color);">
+                    <td class="ps-4 font-monospace" style="font-weight:700; color:var(--text-muted);">#{{ p.id }}</td>
+                    <td class="stat-age" data-val="{{ p.age }}">{{ p.age }}</td>
+                    <td class="stat-sex" data-val="{{ p.sex }}">{{ 'Male' if p.sex == 1 else 'Female' }}</td>
+                    <td class="stat-cp" data-val="{{ p.cp }}">
+                        {% if p.cp == 1 %}Typical Angina
+                        {% elif p.cp == 2 %}Atypical Angina
+                        {% elif p.cp == 3 %}Non-Anginal
+                        {% else %}Asymptomatic
+                        {% endif %}
+                    </td>
+                    <td class="stat-trestbps" data-val="{{ p.trestbps }}">{{ p.trestbps }}</td>
+                    <td class="stat-chol" data-val="{{ p.chol }}">{{ p.chol }}</td>
+                    <td class="stat-fbs" data-val="{{ p.fbs }}">{{ 'True' if p.fbs == 1 else 'False' }}</td>
+                    <td class="stat-restecg" data-val="{{ p.restecg }}">
+                        {% if p.restecg == 0 %}Normal
+                        {% elif p.restecg == 1 %}ST-T Abnormality
+                        {% else %}LV Hypertrophy
+                        {% endif %}
+                    </td>
+                    <td class="stat-thalach" data-val="{{ p.thalach }}">{{ p.thalach }}</td>
+                    <td class="stat-exang" data-val="{{ p.exang }}">{{ 'Yes' if p.exang == 1 else 'No' }}</td>
+                    <td class="stat-oldpeak" data-val="{{ p.oldpeak }}">{{ p.oldpeak }}</td>
+                    <td class="stat-slope" data-val="{{ p.slope }}">{{ p.slope }}</td>
+                    <td class="stat-ca" data-val="{{ p.ca }}">{{ p.ca }}</td>
+                    <td class="stat-thal" data-val="{{ p.thal }}">
+                        {% if p.thal == 3 %}Normal (3)
+                        {% elif p.thal == 6 %}Fixed (6)
+                        {% else %}Reversible (7)
+                        {% endif %}
+                    </td>
+                    <td class="stat-target" data-val="{{ p.target }}">
+                        <span class="badge {{ 'bg-danger' if p.target == 1 else 'bg-success' }}" style="font-size:10px;">
+                            {{ 'Disease' if p.target == 1 else 'Normal' }}
+                        </span>
+                    </td>
+                    <td class="pe-4 text-center">
+                        <div class="d-flex justify-content-center gap-2">
+                            <button onclick="openEditModal({{ p.id }})" class="btn btn-sm btn-outline-primary" style="padding: 2px 8px; font-size:11px; font-weight:700;">
+                                <i class="fas fa-edit"></i> Edit
+                            </button>
+                            
+                            <form method="POST" action="{{ url_for('delete_patient', pid=p.id) }}" onsubmit="return confirm('Are you sure you want to delete patient record #{{ p.id }}?');" class="m-0">
+                                <button type="submit" class="btn btn-sm btn-outline-danger" style="padding: 2px 8px; font-size:11px; font-weight:700;">
+                                    <i class="fas fa-trash"></i> Delete
+                                </button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</article>
+
+<!-- PAGINATION BAR -->
+{% if total_pages > 1 %}
+<nav class="d-flex justify-content-center">
+    <ul class="pagination pagination-sm m-0" style="gap:4px;">
+        <li class="page-item {{ 'disabled' if page == 1 }}">
+            <a class="page-link story-btn py-2 px-3" href="{{ url_for('admin_patients', page=page-1) }}" style="border-radius:var(--radius-sm); border:1px solid var(--border-color); color:var(--text-primary); text-decoration:none;"><i class="fas fa-arrow-left"></i> Previous</a>
+        </li>
+        
+        <li class="page-item disabled">
+            <span class="page-link story-btn py-2 px-3 bg-transparent text-muted" style="border:none;">Page <strong>{{ page }}</strong> of <strong>{{ total_pages }}</strong></span>
+        </li>
+        
+        <li class="page-item {{ 'disabled' if page == total_pages }}">
+            <a class="page-link story-btn py-2 px-3" href="{{ url_for('admin_patients', page=page+1) }}" style="border-radius:var(--radius-sm); border:1px solid var(--border-color); color:var(--text-primary); text-decoration:none;">Next <i class="fas fa-arrow-right"></i></a>
+        </li>
+    </ul>
+</nav>
+{% endif %}
+
+<!-- ADD PATIENT MODAL -->
+<div class="modal fade" id="addPatientModal" tabindex="-1" aria-labelledby="addPatientModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content" style="background-color: var(--bg-sidebar); border: 1px solid var(--border-color); border-radius: var(--radius-lg); backdrop-filter: var(--glass-blur);">
+            <div class="modal-header border-bottom-0 ps-4 pe-4 pt-4">
+                <h5 class="modal-title" id="addPatientModalLabel" style="font-weight:800; color:var(--text-primary);"><i class="fas fa-notes-medical text-primary me-2"></i> Add Patient Record</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" style="filter: var(--text-primary);"></button>
+            </div>
+            
+            <form method="POST" action="{{ url_for('add_patient') }}">
+                <div class="modal-body ps-4 pe-4 pb-4 pt-2">
+                    <div class="row g-3">
+                        <!-- Age -->
+                        <div class="col-md-4 form-group">
+                            <label class="form-label" style="font-size:12px; font-weight:700; color:var(--text-secondary); text-transform:uppercase;">Age</label>
+                            <input type="number" name="age" value="54" min="1" max="120" required class="form-control" style="background-color: var(--bg-app); border: 1px solid var(--border-color); color: var(--text-primary);">
+                        </div>
+                        
+                        <!-- Sex -->
+                        <div class="col-md-4 form-group">
+                            <label class="form-label" style="font-size:12px; font-weight:700; color:var(--text-secondary); text-transform:uppercase;">Sex</label>
+                            <select name="sex" class="form-select" style="background-color: var(--bg-app); border: 1px solid var(--border-color); color: var(--text-primary);">
+                                <option value="1">Male</option>
+                                <option value="0">Female</option>
+                            </select>
+                        </div>
+                        
+                        <!-- CP -->
+                        <div class="col-md-4 form-group">
+                            <label class="form-label" style="font-size:12px; font-weight:700; color:var(--text-secondary); text-transform:uppercase;">Chest Pain Type</label>
+                            <select name="cp" class="form-select" style="background-color: var(--bg-app); border: 1px solid var(--border-color); color: var(--text-primary);">
+                                <option value="1">Typical Angina (1)</option>
+                                <option value="2">Atypical Angina (2)</option>
+                                <option value="3">Non-Anginal Pain (3)</option>
+                                <option value="4" selected>Asymptomatic (4)</option>
+                            </select>
+                        </div>
+                        
+                        <!-- BP -->
+                        <div class="col-md-4 form-group">
+                            <label class="form-label" style="font-size:12px; font-weight:700; color:var(--text-secondary); text-transform:uppercase;">Resting BP (mm Hg)</label>
+                            <input type="number" name="trestbps" value="130" min="60" max="250" required class="form-control" style="background-color: var(--bg-app); border: 1px solid var(--border-color); color: var(--text-primary);">
+                        </div>
+                        
+                        <!-- Chol -->
+                        <div class="col-md-4 form-group">
+                            <label class="form-label" style="font-size:12px; font-weight:700; color:var(--text-secondary); text-transform:uppercase;">Cholesterol (mg/dl)</label>
+                            <input type="number" name="chol" value="240" min="80" max="600" required class="form-control" style="background-color: var(--bg-app); border: 1px solid var(--border-color); color: var(--text-primary);">
+                        </div>
+                        
+                        <!-- FBS -->
+                        <div class="col-md-4 form-group">
+                            <label class="form-label" style="font-size:12px; font-weight:700; color:var(--text-secondary); text-transform:uppercase;">Fasting Blood Sugar > 120</label>
+                            <select name="fbs" class="form-select" style="background-color: var(--bg-app); border: 1px solid var(--border-color); color: var(--text-primary);">
+                                <option value="0">False</option>
+                                <option value="1">True</option>
+                            </select>
+                        </div>
+                        
+                        <!-- RestECG -->
+                        <div class="col-md-4 form-group">
+                            <label class="form-label" style="font-size:12px; font-weight:700; color:var(--text-secondary); text-transform:uppercase;">Resting ECG</label>
+                            <select name="restecg" class="form-select" style="background-color: var(--bg-app); border: 1px solid var(--border-color); color: var(--text-primary);">
+                                <option value="0">Normal</option>
+                                <option value="1">ST-T Wave Abnormality</option>
+                                <option value="2">LV Hypertrophy</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Thalach -->
+                        <div class="col-md-4 form-group">
+                            <label class="form-label" style="font-size:12px; font-weight:700; color:var(--text-secondary); text-transform:uppercase;">Max Heart Rate</label>
+                            <input type="number" name="thalach" value="150" min="50" max="230" required class="form-control" style="background-color: var(--bg-app); border: 1px solid var(--border-color); color: var(--text-primary);">
+                        </div>
+                        
+                        <!-- Exang -->
+                        <div class="col-md-4 form-group">
+                            <label class="form-label" style="font-size:12px; font-weight:700; color:var(--text-secondary); text-transform:uppercase;">Exercise Angina</label>
+                            <select name="exang" class="form-select" style="background-color: var(--bg-app); border: 1px solid var(--border-color); color: var(--text-primary);">
+                                <option value="0">No</option>
+                                <option value="1">Yes</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Oldpeak -->
+                        <div class="col-md-4 form-group">
+                            <label class="form-label" style="font-size:12px; font-weight:700; color:var(--text-secondary); text-transform:uppercase;">ST Depression (Oldpeak)</label>
+                            <input type="number" name="oldpeak" value="1.0" min="0.0" max="10.0" step="0.1" required class="form-control" style="background-color: var(--bg-app); border: 1px solid var(--border-color); color: var(--text-primary);">
+                        </div>
+                        
+                        <!-- Slope -->
+                        <div class="col-md-4 form-group">
+                            <label class="form-label" style="font-size:12px; font-weight:700; color:var(--text-secondary); text-transform:uppercase;">ST Slope</label>
+                            <select name="slope" class="form-select" style="background-color: var(--bg-app); border: 1px solid var(--border-color); color: var(--text-primary);">
+                                <option value="1">Upsloping (1)</option>
+                                <option value="2">Flat (2)</option>
+                                <option value="3">Downsloping (3)</option>
+                            </select>
+                        </div>
+                        
+                        <!-- CA -->
+                        <div class="col-md-4 form-group">
+                            <label class="form-label" style="font-size:12px; font-weight:700; color:var(--text-secondary); text-transform:uppercase;">Vessels Colored (0-3)</label>
+                            <select name="ca" class="form-select" style="background-color: var(--bg-app); border: 1px solid var(--border-color); color: var(--text-primary);">
+                                <option value="0">0 Vessels</option>
+                                <option value="1">1 Vessel</option>
+                                <option value="2">2 Vessels</option>
+                                <option value="3">3 Vessels</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Thal -->
+                        <div class="col-md-6 form-group">
+                            <label class="form-label" style="font-size:12px; font-weight:700; color:var(--text-secondary); text-transform:uppercase;">Thalassemia</label>
+                            <select name="thal" class="form-select" style="background-color: var(--bg-app); border: 1px solid var(--border-color); color: var(--text-primary);">
+                                <option value="3">Normal (3)</option>
+                                <option value="6">Fixed Defect (6)</option>
+                                <option value="7">Reversible Defect (7)</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Target -->
+                        <div class="col-md-6 form-group">
+                            <label class="form-label" style="font-size:12px; font-weight:700; color:var(--text-secondary); text-transform:uppercase;">Diagnostic Target</label>
+                            <select name="target" class="form-select" style="background-color: var(--bg-app); border: 1px solid var(--border-color); color: var(--text-primary);">
+                                <option value="0">Normal (Healthy)</option>
+                                <option value="1">Confirmed Heart Disease</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="modal-footer border-top-0 ps-4 pe-4 pb-4 pt-0 justify-content-end">
+                    <button type="button" class="story-btn" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="submit-btn"><i class="fas fa-save me-2"></i> Save Patient</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- EDIT PATIENT MODAL (DYNAMICALLY TARGETED) -->
+<div class="modal fade" id="editPatientModal" tabindex="-1" aria-labelledby="editPatientModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content" style="background-color: var(--bg-sidebar); border: 1px solid var(--border-color); border-radius: var(--radius-lg); backdrop-filter: var(--glass-blur);">
+            <div class="modal-header border-bottom-0 ps-4 pe-4 pt-4">
+                <h5 class="modal-title" id="editPatientModalLabel" style="font-weight:800; color:var(--text-primary);"><i class="fas fa-edit text-primary me-2"></i> Edit Patient Record</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" style="filter: var(--text-primary);"></button>
+            </div>
+            
+            <form id="edit-patient-form" method="POST" action="">
+                <div class="modal-body ps-4 pe-4 pb-4 pt-2">
+                    <div class="row g-3">
+                        <!-- Age -->
+                        <div class="col-md-4 form-group">
+                            <label class="form-label" style="font-size:12px; font-weight:700; color:var(--text-secondary); text-transform:uppercase;">Age</label>
+                            <input type="number" id="edit-age" name="age" required class="form-control" style="background-color: var(--bg-app); border: 1px solid var(--border-color); color: var(--text-primary);">
+                        </div>
+                        
+                        <!-- Sex -->
+                        <div class="col-md-4 form-group">
+                            <label class="form-label" style="font-size:12px; font-weight:700; color:var(--text-secondary); text-transform:uppercase;">Sex</label>
+                            <select id="edit-sex" name="sex" class="form-select" style="background-color: var(--bg-app); border: 1px solid var(--border-color); color: var(--text-primary);">
+                                <option value="1">Male</option>
+                                <option value="0">Female</option>
+                            </select>
+                        </div>
+                        
+                        <!-- CP -->
+                        <div class="col-md-4 form-group">
+                            <label class="form-label" style="font-size:12px; font-weight:700; color:var(--text-secondary); text-transform:uppercase;">Chest Pain Type</label>
+                            <select id="edit-cp" name="cp" class="form-select" style="background-color: var(--bg-app); border: 1px solid var(--border-color); color: var(--text-primary);">
+                                <option value="1">Typical Angina (1)</option>
+                                <option value="2">Atypical Angina (2)</option>
+                                <option value="3">Non-Anginal Pain (3)</option>
+                                <option value="4">Asymptomatic (4)</option>
+                            </select>
+                        </div>
+                        
+                        <!-- BP -->
+                        <div class="col-md-4 form-group">
+                            <label class="form-label" style="font-size:12px; font-weight:700; color:var(--text-secondary); text-transform:uppercase;">Resting BP (mm Hg)</label>
+                            <input type="number" id="edit-trestbps" name="trestbps" required class="form-control" style="background-color: var(--bg-app); border: 1px solid var(--border-color); color: var(--text-primary);">
+                        </div>
+                        
+                        <!-- Chol -->
+                        <div class="col-md-4 form-group">
+                            <label class="form-label" style="font-size:12px; font-weight:700; color:var(--text-secondary); text-transform:uppercase;">Cholesterol (mg/dl)</label>
+                            <input type="number" id="edit-chol" name="chol" required class="form-control" style="background-color: var(--bg-app); border: 1px solid var(--border-color); color: var(--text-primary);">
+                        </div>
+                        
+                        <!-- FBS -->
+                        <div class="col-md-4 form-group">
+                            <label class="form-label" style="font-size:12px; font-weight:700; color:var(--text-secondary); text-transform:uppercase;">Fasting Blood Sugar > 120</label>
+                            <select id="edit-fbs" name="fbs" class="form-select" style="background-color: var(--bg-app); border: 1px solid var(--border-color); color: var(--text-primary);">
+                                <option value="0">False</option>
+                                <option value="1">True</option>
+                            </select>
+                        </div>
+                        
+                        <!-- RestECG -->
+                        <div class="col-md-4 form-group">
+                            <label class="form-label" style="font-size:12px; font-weight:700; color:var(--text-secondary); text-transform:uppercase;">Resting ECG</label>
+                            <select id="edit-restecg" name="restecg" class="form-select" style="background-color: var(--bg-app); border: 1px solid var(--border-color); color: var(--text-primary);">
+                                <option value="0">Normal</option>
+                                <option value="1">ST-T Wave Abnormality</option>
+                                <option value="2">LV Hypertrophy</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Thalach -->
+                        <div class="col-md-4 form-group">
+                            <label class="form-label" style="font-size:12px; font-weight:700; color:var(--text-secondary); text-transform:uppercase;">Max Heart Rate</label>
+                            <input type="number" id="edit-thalach" name="thalach" required class="form-control" style="background-color: var(--bg-app); border: 1px solid var(--border-color); color: var(--text-primary);">
+                        </div>
+                        
+                        <!-- Exang -->
+                        <div class="col-md-4 form-group">
+                            <label class="form-label" style="font-size:12px; font-weight:700; color:var(--text-secondary); text-transform:uppercase;">Exercise Angina</label>
+                            <select id="edit-exang" name="exang" class="form-select" style="background-color: var(--bg-app); border: 1px solid var(--border-color); color: var(--text-primary);">
+                                <option value="0">No</option>
+                                <option value="1">Yes</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Oldpeak -->
+                        <div class="col-md-4 form-group">
+                            <label class="form-label" style="font-size:12px; font-weight:700; color:var(--text-secondary); text-transform:uppercase;">ST Depression (Oldpeak)</label>
+                            <input type="number" id="edit-oldpeak" name="oldpeak" required step="0.1" class="form-control" style="background-color: var(--bg-app); border: 1px solid var(--border-color); color: var(--text-primary);">
+                        </div>
+                        
+                        <!-- Slope -->
+                        <div class="col-md-4 form-group">
+                            <label class="form-label" style="font-size:12px; font-weight:700; color:var(--text-secondary); text-transform:uppercase;">ST Slope</label>
+                            <select id="edit-slope" name="slope" class="form-select" style="background-color: var(--bg-app); border: 1px solid var(--border-color); color: var(--text-primary);">
+                                <option value="1">Upsloping (1)</option>
+                                <option value="2">Flat (2)</option>
+                                <option value="3">Downsloping (3)</option>
+                            </select>
+                        </div>
+                        
+                        <!-- CA -->
+                        <div class="col-md-4 form-group">
+                            <label class="form-label" style="font-size:12px; font-weight:700; color:var(--text-secondary); text-transform:uppercase;">Vessels Colored (0-3)</label>
+                            <select id="edit-ca" name="ca" class="form-select" style="background-color: var(--bg-app); border: 1px solid var(--border-color); color: var(--text-primary);">
+                                <option value="0">0 Vessels</option>
+                                <option value="1">1 Vessel</option>
+                                <option value="2">2 Vessels</option>
+                                <option value="3">3 Vessels</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Thal -->
+                        <div class="col-md-6 form-group">
+                            <label class="form-label" style="font-size:12px; font-weight:700; color:var(--text-secondary); text-transform:uppercase;">Thalassemia</label>
+                            <select id="edit-thal" name="thal" class="form-select" style="background-color: var(--bg-app); border: 1px solid var(--border-color); color: var(--text-primary);">
+                                <option value="3">Normal (3)</option>
+                                <option value="6">Fixed Defect (6)</option>
+                                <option value="7">Reversible Defect (7)</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Target -->
+                        <div class="col-md-6 form-group">
+                            <label class="form-label" style="font-size:12px; font-weight:700; color:var(--text-secondary); text-transform:uppercase;">Diagnostic Target</label>
+                            <select id="edit-target" name="target" class="form-select" style="background-color: var(--bg-app); border: 1px solid var(--border-color); color: var(--text-primary);">
+                                <option value="0">Normal (Healthy)</option>
+                                <option value="1">Confirmed Heart Disease</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="modal-footer border-top-0 ps-4 pe-4 pb-4 pt-0 justify-content-end">
+                    <button type="button" class="story-btn" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="submit-btn"><i class="fas fa-save me-2"></i> Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function openEditModal(pid) {
+        // Find row variables
+        const row = document.getElementById(`row-${pid}`);
+        if (!row) return;
+        
+        const age = row.querySelector('.stat-age').getAttribute('data-val');
+        const sex = row.querySelector('.stat-sex').getAttribute('data-val');
+        const cp = row.querySelector('.stat-cp').getAttribute('data-val');
+        const trestbps = row.querySelector('.stat-trestbps').getAttribute('data-val');
+        const chol = row.querySelector('.stat-chol').getAttribute('data-val');
+        const fbs = row.querySelector('.stat-fbs').getAttribute('data-val');
+        const restecg = row.querySelector('.stat-restecg').getAttribute('data-val');
+        const thalach = row.querySelector('.stat-thalach').getAttribute('data-val');
+        const exang = row.querySelector('.stat-exang').getAttribute('data-val');
+        const oldpeak = row.querySelector('.stat-oldpeak').getAttribute('data-val');
+        const slope = row.querySelector('.stat-slope').getAttribute('data-val');
+        const ca = row.querySelector('.stat-ca').getAttribute('data-val');
+        const thal = row.querySelector('.stat-thal').getAttribute('data-val');
+        const target = row.querySelector('.stat-target').getAttribute('data-val');
+        
+        // Populate inputs
+        document.getElementById('edit-age').value = age;
+        document.getElementById('edit-sex').value = sex;
+        document.getElementById('edit-cp').value = cp;
+        document.getElementById('edit-trestbps').value = trestbps;
+        document.getElementById('edit-chol').value = chol;
+        document.getElementById('edit-fbs').value = fbs;
+        document.getElementById('edit-restecg').value = restecg;
+        document.getElementById('edit-thalach').value = thalach;
+        document.getElementById('edit-exang').value = exang;
+        document.getElementById('edit-oldpeak').value = oldpeak;
+        document.getElementById('edit-slope').value = slope;
+        document.getElementById('edit-ca').value = ca;
+        document.getElementById('edit-thal').value = thal;
+        document.getElementById('edit-target').value = target;
+        
+        // Update Form action
+        document.getElementById('edit-patient-form').action = `/admin/patients/edit/${pid}`;
+        
+        // Display Modal using bootstrap triggers
+        const editModal = new bootstrap.Modal(document.getElementById('editPatientModal'));
+        editModal.show();
+    }
+</script>
+{% endblock %}

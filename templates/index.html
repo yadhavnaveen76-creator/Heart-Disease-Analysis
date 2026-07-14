@@ -1,0 +1,228 @@
+{% extends "base.html" %}
+
+{% block title %}CardioSync - Heart Disease Analysis Platform{% endblock %}
+
+{% block page_title %}Overview & Scenarios{% endblock %}
+{% block page_subtitle %}Explore target labels, user personas, and project directives.{% endblock %}
+
+{% block content %}
+<!-- HERO BANNER -->
+<section class="hero-banner">
+    <div class="hero-content">
+        <span class="hero-tag"><i class="fas fa-heartbeat"></i> Active Research</span>
+        <h2 class="hero-title">Predicting Cardiac Risk Through Clinical Bio-Markers</h2>
+        <p class="hero-desc">
+            An advanced analysis framework designed to extract patterns from resting blood pressure, cholesterol levels, chest pain typology, and electrocardiograms to forecast heart disease risk and enhance diagnostic precision.
+        </p>
+        <div style="display: flex; gap: 14px;">
+            <a href="{{ url_for('dashboard') }}" class="submit-btn" style="text-decoration: none; padding: 10px 24px;">
+                <i class="fas fa-chart-pie"></i> Explore Dashboard
+            </a>
+            <a href="{{ url_for('predict') }}" class="story-btn" style="text-decoration: none; padding: 10px 24px;">
+                <i class="fas fa-user-md"></i> Run Risk Prediction
+            </a>
+        </div>
+    </div>
+</section>
+
+<!-- SPLIT GRID LAYOUT -->
+<div class="home-grid">
+    <!-- LEFT SIDE: OVERVIEW & SCENARIOS -->
+    <div style="display: flex; flex-direction: column; gap: 32px;">
+        
+        <!-- PROJECT DESCRIPTION -->
+        <article class="glass-card">
+            <div class="card-title" style="justify-content: space-between;">
+                <span><i class="fas fa-file-alt"></i> Project Overview</span>
+                <div style="font-size: 14px; display:flex; gap: 12px; color: var(--text-secondary);">
+                    <i class="far fa-copy" title="Copy Content" style="cursor: pointer;"></i>
+                    <i class="fab fa-markdown" title="Markdown Source" style="cursor: pointer;"></i>
+                    <i class="far fa-eye" title="View Counts" style="cursor: pointer;"></i>
+                </div>
+            </div>
+            
+            <div style="color: var(--text-secondary); display:flex; flex-direction:column; gap:16px;">
+                <p>
+                    Heart disease remains one of the leading causes of mortality worldwide, and traditional medical records show lifestyle changes, dietary habits, and lack of physical activity. Despite advances in medicine, prevention and early detection are crucial in reducing the risk of cardiovascular diseases. Analyzing large-scale health data related to heart disease—such as patient demographics, medical history, lifestyle choices, and clinical measures—requires advanced tools for extracting insights.
+                </p>
+                <p>
+                    In this project, we choose target labels to detect cardiac risk indicators and build predictive models that analyze heart disease factors. The goal is to develop a user-friendly, interactive dashboard that highlights key risk factors, and identify trends that can support clinical decision-making. By leveraging database storage and modern web analytics, users can visualize data over time, compare patient groups, and test hypotheses through dashboard components.
+                </p>
+            </div>
+        </article>
+        
+        <!-- USER SCENARIOS -->
+        <section class="glass-card">
+            <div class="card-title">
+                <i class="fas fa-users-cog"></i> User Personas & Scenarios
+            </div>
+            
+            <div class="scenarios-container">
+                <!-- Scenario 1 -->
+                <div class="scenario-card" onclick="location.href='{{ url_for('dashboard') }}'">
+                    <div class="scenario-header">
+                        <div class="scenario-title">
+                            <i class="fas fa-user-md" style="color: var(--danger);"></i> Dr. Sharma
+                        </div>
+                        <span class="scenario-role">Clinical Specialist</span>
+                    </div>
+                    <div class="scenario-body">
+                        Dr. Sharma is a senior cardiologist working in a metropolitan hospital. She notices an increasing number of patients coming with heart issues, and wants an interactive dashboard highlighting key risk factors. She needs to identify trends rapidly to support clinical decisions.
+                    </div>
+                </div>
+                
+                <!-- Scenario 2 -->
+                <div class="scenario-card" onclick="location.href='{{ url_for('database') }}'">
+                    <div class="scenario-header">
+                        <div class="scenario-title">
+                            <i class="fas fa-chart-bar" style="color: var(--primary);"></i> Ramesh
+                        </div>
+                        <span class="scenario-role">Data Analyst</span>
+                    </div>
+                    <div class="scenario-body">
+                        Ramesh is a health data analyst investigating correlations between demographics (age, gender) and clinical indicators like cholesterol or vessel count. He wants to query the patient database and export reports comparing different profiles.
+                    </div>
+                </div>
+                
+                <!-- Scenario 3 -->
+                <div class="scenario-card" onclick="location.href='{{ url_for('predict') }}'">
+                    <div class="scenario-header">
+                        <div class="scenario-title">
+                            <i class="fas fa-heart" style="color: var(--success);"></i> Anya
+                        </div>
+                        <span class="scenario-role">Self-Assessment</span>
+                    </div>
+                    <div class="scenario-body">
+                        Anya is a 38-year old woman with a family history of heart disease. She wants to check her own cardiac health risk factors (resting blood pressure, ECG, cholesterol) and get immediate diagnostic estimates alongside healthy lifestyle recommendations.
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+    
+    <!-- RIGHT SIDE: PROJECT METADATA, TEAM & ROADMAP -->
+    <div style="display: flex; flex-direction: column; gap: 32px;">
+        
+        <!-- PROJECT SPECS -->
+        <section class="glass-card">
+            <div class="card-title">
+                <i class="fas fa-circle-info"></i> Project Details
+            </div>
+            <table class="info-table">
+                <tr>
+                    <td class="label">Skills Required</td>
+                    <td class="value">Data Analysis, Python, SQL, BI Software</td>
+                </tr>
+                <tr>
+                    <td class="label">Team Lead</td>
+                    <td class="value" style="color: var(--primary);">Naveen Yadav</td>
+                </tr>
+                <tr>
+                    <td class="label">Project Mentor</td>
+                    <td class="value" style="color: var(--text-muted); font-style: italic;">No Mentor Assigned</td>
+                </tr>
+                <tr>
+                    <td class="label">Framework</td>
+                    <td class="value">Python Flask & SQLite</td>
+                </tr>
+            </table>
+            
+            <button class="story-btn" style="width: 100%; justify-content: center; margin-top: 16px;" onclick="toggleTeamModal()">
+                <i class="fas fa-address-book"></i> View Team Members & Mentor
+            </button>
+        </section>
+        
+        <!-- ROADMAP TIMELINE -->
+        <section class="glass-card">
+            <div class="card-title">
+                <i class="fas fa-tasks"></i> Project Roadmap
+            </div>
+            
+            <div class="roadmap-timeline">
+                <div class="roadmap-item completed">
+                    <div class="roadmap-marker"></div>
+                    <div class="roadmap-content">
+                        <div class="roadmap-header">Problem Understanding</div>
+                        <div class="roadmap-desc">Laying down constraints and business objectives.</div>
+                    </div>
+                </div>
+                <div class="roadmap-item completed">
+                    <div class="roadmap-marker"></div>
+                    <div class="roadmap-content">
+                        <div class="roadmap-header">Data Collection & DB Storing</div>
+                        <div class="roadmap-desc">SQLite initialized; 303 UCI patients records loaded.</div>
+                    </div>
+                </div>
+                <div class="roadmap-item in-progress">
+                    <div class="roadmap-marker"></div>
+                    <div class="roadmap-content">
+                        <div class="roadmap-header">Data Visualisation & Dashboard</div>
+                        <div class="roadmap-desc">Building responsive charts and aggregate endpoints.</div>
+                    </div>
+                </div>
+                <div class="roadmap-item">
+                    <div class="roadmap-marker"></div>
+                    <div class="roadmap-content">
+                        <div class="roadmap-header">Risk Prediction & deployment</div>
+                        <div class="roadmap-desc">Training self-contained machine learning classifier.</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+</div>
+
+<!-- DYNAMIC TEAM DETAILS SLIDE-OUT MODAL -->
+<div id="team-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); backdrop-filter:blur(4px); z-index:1000; align-items:center; justify-content:center; transition: var(--transition);">
+    <div class="glass-card" style="max-width: 500px; width: 90%; background: var(--bg-sidebar); border: 1px solid var(--border-color); animation: slideUp 0.3s ease-out;">
+        <div class="card-title" style="justify-content:space-between; margin-bottom: 20px;">
+            <span><i class="fas fa-address-book"></i> Project Registry</span>
+            <i class="fas fa-times" onclick="toggleTeamModal()" style="cursor:pointer; color: var(--text-secondary);"></i>
+        </div>
+        
+        <div style="display:flex; flex-direction:column; gap:20px; text-align: left;">
+            <div>
+                <h5 style="color:var(--text-secondary); font-size:11px; text-transform:uppercase; margin-bottom:8px;">Student Developer</h5>
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <div class="profile-avatar" style="width:44px; height:44px; font-size:18px;">NY</div>
+                    <div>
+                        <strong style="color:var(--text-primary); font-size:16px;">Naveen Yadav</strong>
+                        <p style="color:var(--text-secondary); font-size:12px;">Work ID: NY-9482 | Data Science Student</p>
+                    </div>
+                </div>
+            </div>
+            
+            <hr style="border: 0; border-top: 1px solid var(--border-color);">
+            
+            <div>
+                <h5 style="color:var(--text-secondary); font-size:11px; text-transform:uppercase; margin-bottom:8px;">Academic Mentor</h5>
+                <div style="display:flex; align-items:center; gap:12px; background: rgba(0,0,0,0.02); padding: 12px; border-radius: var(--radius-sm); border: 1px dashed var(--border-color);">
+                    <div class="profile-avatar" style="width:44px; height:44px; font-size:18px; background: var(--text-muted);"><i class="fas fa-user-slash"></i></div>
+                    <div>
+                        <strong style="color:var(--text-secondary); font-size:15px;">No Mentor Assigned</strong>
+                        <p style="color:var(--text-muted); font-size:12px;">Pending assignment by department head.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function toggleTeamModal() {
+        const modal = document.getElementById('team-modal');
+        if (modal.style.display === 'none' || modal.style.display === '') {
+            modal.style.display = 'flex';
+        } else {
+            modal.style.display = 'none';
+        }
+    }
+</script>
+
+<style>
+    @keyframes slideUp {
+        from { transform: translateY(40px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+    }
+</style>
+{% endblock %}

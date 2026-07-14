@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+
+{% block title %}CardioSync - SQL Query Explorer{% endblock %}
+
+{% block page_title %}SQL Database Console{% endblock %}
+{% block page_subtitle %}Explore patient database schema and run aggregate SQL queries.{% endblock %}
+
+{% block content %}
+<section class="database-layout">
+    <!-- LEFT SIDE: SCHEMA INSPECTOR -->
+    <article class="glass-card" style="align-self: flex-start;">
+        <h3 class="card-title"><i class="fas fa-table"></i> Schema Inspector</h3>
+        <p style="font-size:12px; color:var(--text-secondary); margin-bottom:16px;">
+            Table: <strong>patients</strong> (SQLite)
+        </p>
+        
+        <div class="schema-list">
+            {% for col in schema %}
+            <div class="schema-item">
+                <span class="schema-column-name">{{ col.name }}</span>
+                <span class="schema-column-type">{{ col.type }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </article>
+    
+    <!-- RIGHT SIDE: SQL RUNNER & RESULTS -->
+    <div style="display: flex; flex-direction: column; gap: 32px;">
+        <!-- Query Editor -->
+        <article class="glass-card">
+            <h3 class="card-title"><i class="fas fa-terminal"></i> SQL Query Editor</h3>
+            
+            <form method="POST" action="{{ url_for('database') }}">
+                <div class="sql-editor-container">
+                    <textarea id="sql-editor" name="sql_query" class="sql-textarea" required>{{ query_str }}</textarea>
+                    
+                    <!-- Prepopulated helpers -->
+                    <div class="sql-helpers">
+                        <span style="font-size:11px; font-weight:700; color:var(--text-muted); align-self:center;">Presets:</span>
+                        <button type="button" class="sql-helper-btn" data-query="SELECT * FROM patients LIMIT 10">Show 10 Rows</button>
+                        <button type="button" class="sql-helper-btn" data-query="SELECT sex, COUNT(*) as count, AVG(age) as avg_age FROM patients GROUP BY sex">Demographics Group By Sex</button>
+                        <button type="button" class="sql-helper-btn" data-query="SELECT cp, AVG(chol) as avg_chol, COUNT(*) as count FROM patients WHERE target = 1 GROUP BY cp">Cholesterol for Disease Cases</button>
+                        <button type="button" class="sql-helper-btn" data-query="SELECT target, AVG(thalach) as avg_max_hr FROM patients GROUP BY target">Avg Max HR vs Disease Presence</button>
+                    </div>
+                </div>
+                
+                <div style="display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap;">
+                    {% if current_user.is_authenticated and current_user.role == 'admin' %}
+                    <a href="{{ url_for('api_export') }}" class="story-btn text-decoration-none" style="display: inline-flex; align-items: center; font-size: 13.5px; font-weight:700;">
+                        <i class="fas fa-download me-2"></i> Export Preprocessed CSV
+                    </a>
+                    {% endif %}
+                    <button type="submit" class="submit-btn">
+                        <i class="fas fa-play"></i> Execute Query
+                    </button>
+                </div>
+            </form>
+        </article>
+        
+        <!-- Results Section -->
+        <article class="glass-card" style="min-height: 250px;">
+            <h3 class="card-title"><i class="fas fa-list"></i> Query Results</h3>
+            
+            <!-- Error Alert -->
+            {% if query_error %}
+            <div class="sql-error-alert">
+                <i class="fas fa-circle-exclamation" style="font-size:20px;"></i>
+                <div>
+                    <strong>Query Execution Failed</strong>
+                    <p style="margin-top: 2px;">{{ query_error }}</p>
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Result Table -->
+            {% if query_result %}
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <span style="font-size:13px; color:var(--text-secondary); font-weight:600;">
+                    Returned <strong>{{ query_result.count }}</strong> records.
+                </span>
+                
+                <button class="story-btn" onclick="exportCSV()" style="padding: 6px 12px; font-size:11px;">
+                    <i class="fas fa-file-csv"></i> Export CSV
+                </button>
+            </div>
+            
+            <div class="table-wrapper">
+                <table class="data-table" id="results-table">
+                    <thead>
+                        <tr>
+                            {% for col in query_result.headers %}
+                            <th>{{ col }}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in query_result.rows %}
+                        <tr>
+                            {% for val in row %}
+                            <td>{{ val if val is not none else 'NULL' }}</td>
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% elif not query_error %}
+            <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding: 40px 0; color:var(--text-muted);">
+                <i class="fas fa-table-list" style="font-size: 50px; margin-bottom:16px;"></i>
+                <p style="font-size:13.5px; font-weight:600;">No query executed yet.</p>
+                <p style="font-size:12px; max-width:240px; margin-top:4px;">Write your query above and click Execute to see tabular database results.</p>
+            </div>
+            {% endif %}
+        </article>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function exportCSV() {
+        const table = document.getElementById("results-table");
+        if (!table) return;
+        
+        let csv = [];
+        const rows = table.querySelectorAll("tr");
+        
+        for (let i = 0; i < rows.length; i++) {
+            const cols = rows[i].querySelectorAll("td, th");
+            let row = [];
+            
+            for (let j = 0; j < cols.length; j++) {
+                row.push('"' + cols[j].innerText.replace(/"/g, '""') + '"');
+            }
+            csv.push(row.join(","));
+        }
+        
+        const csvFile = new Blob([csv.join("\n")], { type: "text/csv" });
+        const downloadLink = document.createElement("a");
+        downloadLink.download = "query_results.csv";
+        downloadLink.href = window.URL.createObjectURL(csvFile);
+        downloadLink.style.display = "none";
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+    }
+</script>
+{% endblock %}

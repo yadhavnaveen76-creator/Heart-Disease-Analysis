@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block title %}CardioSync - Manage User Accounts{% endblock %}
+
+{% block page_title %}User Account Management{% endblock %}
+{% block page_subtitle %}Add, manage, and delete analyst credentials and roles.{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- LEFT SIDE: USER ACCOUNTS TABLE -->
+    <div class="col-lg-7">
+        <article class="glass-card h-100">
+            <h3 class="card-title"><i class="fas fa-users"></i> Registered Analyst Accounts</h3>
+            <p style="color:var(--text-secondary); font-size:13.5px; margin-bottom: 24px;">
+                Review active system operators and system administrator accounts. Only Admin accounts can create or remove roles.
+            </p>
+            
+            <div class="table-responsive">
+                <table class="data-table" style="font-size:13.5px;">
+                    <thead>
+                        <tr style="border-bottom:1px solid var(--border-color);">
+                            <th class="ps-3">ID</th>
+                            <th>Username</th>
+                            <th>Role</th>
+                            <th class="pe-3 text-center">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for u in users %}
+                        <tr style="border-bottom:1px solid var(--border-color);">
+                            <td class="ps-3 font-monospace text-muted">#{{ u.id }}</td>
+                            <td style="font-weight:700;">{{ u.username }}</td>
+                            <td>
+                                {% if u.role == 'admin' %}
+                                <span class="badge bg-danger">Administrator</span>
+                                {% else %}
+                                <span class="badge bg-secondary">Analyst</span>
+                                {% endif %}
+                            </td>
+                            <td class="pe-3 text-center">
+                                {% if u.id == current_user.id %}
+                                <button class="btn btn-sm btn-outline-secondary" disabled title="You cannot delete your own logged-in account." style="padding: 2px 8px; font-size:11px;">
+                                    <i class="fas fa-ban"></i> Active Session
+                                </button>
+                                {% else %}
+                                <form method="POST" action="{{ url_for('delete_user', uid=u.id) }}" onsubmit="return confirm('Are you sure you want to delete user account: {{ u.username }}?');" class="m-0">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" style="padding: 2px 8px; font-size:11px; font-weight:700;">
+                                        <i class="fas fa-user-slash"></i> Delete Account
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </article>
+    </div>
+    
+    <!-- RIGHT SIDE: ADD USER FORM -->
+    <div class="col-lg-5">
+        <article class="glass-card">
+            <h3 class="card-title"><i class="fas fa-user-plus"></i> Create Analyst Account</h3>
+            
+            <form method="POST" action="{{ url_for('add_user') }}">
+                <div class="mb-3 form-group">
+                    <label for="reg-username" class="form-label" style="font-size:12px; font-weight:700; color:var(--text-secondary); text-transform:uppercase;">Username</label>
+                    <input type="text" class="form-control" id="reg-username" name="username" placeholder="e.g. jdoe" required style="background-color: var(--bg-app); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: var(--radius-md);">
+                </div>
+                
+                <div class="mb-3 form-group">
+                    <label for="reg-password" class="form-label" style="font-size:12px; font-weight:700; color:var(--text-secondary); text-transform:uppercase;">Password</label>
+                    <input type="password" class="form-control" id="reg-password" name="password" placeholder="Enter secure password" required style="background-color: var(--bg-app); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: var(--radius-md);">
+                </div>
+                
+                <div class="mb-4 form-group">
+                    <label for="reg-role" class="form-label" style="font-size:12px; font-weight:700; color:var(--text-secondary); text-transform:uppercase;">System Role</label>
+                    <select id="reg-role" name="role" class="form-select" style="background-color: var(--bg-app); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: var(--radius-md);">
+                        <option value="user" selected>Analyst (Read-only workspace access)</option>
+                        <option value="admin">Administrator (Full pipeline CRUD rights)</option>
+                    </select>
+                </div>
+                
+                <button type="submit" class="submit-btn w-100 justify-content-center py-2" style="font-size:14px;">
+                    <i class="fas fa-user-plus"></i> Create Account
+                </button>
+            </form>
+        </article>
+    </div>
+</div>
+{% endblock %}

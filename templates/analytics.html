@@ -1,0 +1,293 @@
+{% extends "base.html" %}
+
+{% block title %}CardioSync - Advanced Analytics & Correlations{% endblock %}
+
+{% block page_title %}Clinical Analytics{% endblock %}
+{% block page_subtitle %}In-depth correlation matrices and statistical bio-marker distributions.{% endblock %}
+
+{% block head %}
+<!-- ApexCharts CDN -->
+<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+<style>
+    .analytics-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 20px;
+        margin-bottom: 24px;
+    }
+    .stats-card {
+        background-color: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-md);
+        padding: 20px;
+        text-align: center;
+        box-shadow: var(--shadow-sm);
+        transition: var(--transition);
+    }
+    .stats-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+    }
+    .stats-card-value {
+        font-size: 26px;
+        font-weight: 800;
+        color: var(--primary);
+        margin-bottom: 4px;
+    }
+    .stats-card-label {
+        font-size: 12.5px;
+        font-weight: 600;
+        color: var(--text-secondary);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+{% if empty %}
+<article class="glass-card text-center py-5">
+    <i class="fas fa-chart-line" style="font-size: 70px; color: var(--text-muted); margin-bottom: 24px;"></i>
+    <h3 style="color:var(--text-primary); font-weight:700;">No Patient Data Available</h3>
+    <p style="color:var(--text-secondary); font-size:14px; max-width:400px; margin: 8px auto 24px;">
+        The SQLite database does not contain any patient records yet. Please log in as Administrator to seed or upload a dataset.
+    </p>
+    {% if not current_user.is_authenticated %}
+    <a href="{{ url_for('login') }}" class="submit-btn" style="text-decoration:none; padding:10px 24px;">
+        <i class="fas fa-sign-in-alt"></i> Login as Admin
+    </a>
+    {% else %}
+    <a href="{{ url_for('upload') }}" class="submit-btn" style="text-decoration:none; padding:10px 24px;">
+        <i class="fas fa-cloud-upload-alt"></i> Upload heart.csv
+    </a>
+    {% endif %}
+</article>
+{% else %}
+
+<!-- STATISTICAL HIGHLIGHTS -->
+<section class="analytics-stats-grid">
+    <div class="stats-card">
+        <div class="stats-card-value" id="val-records">{{ stats.records_count }}</div>
+        <div class="stats-card-label">Total Patients</div>
+    </div>
+    
+    <div class="stats-card">
+        <div class="stats-card-value">{{ stats.avg_age }} <span style="font-size:13px; font-weight:500; color:var(--text-secondary);">±{{ stats.std_age }}</span></div>
+        <div class="stats-card-label">Average Age</div>
+    </div>
+    
+    <div class="stats-card">
+        <div class="stats-card-value">{{ stats.avg_chol }} <span style="font-size:13px; font-weight:500; color:var(--text-secondary);">±{{ stats.std_chol }}</span></div>
+        <div class="stats-card-label">Average Cholesterol</div>
+    </div>
+    
+    <div class="stats-card">
+        <div class="stats-card-value">{{ stats.avg_trestbps }} <span style="font-size:13px; font-weight:500; color:var(--text-secondary);">±{{ stats.std_trestbps }}</span></div>
+        <div class="stats-card-label">Average BP</div>
+    </div>
+    
+    <div class="stats-card" style="border-color: rgba(244, 63, 94, 0.2); background: rgba(244, 63, 94, 0.01);">
+        <div class="stats-card-value" style="color: var(--danger);" id="val-disease-pct">{{ stats.high_risk_percentage }}%</div>
+        <div class="stats-card-label">Heart Disease Proportion</div>
+    </div>
+</section>
+
+<!-- ANALYTICS CHARTS GRID (Pie, Bar, Line) -->
+<div class="row g-4 mb-4">
+    <!-- Pie Chart: Sex Demographics -->
+    <div class="col-lg-4 col-md-6">
+        <article class="glass-card h-100">
+            <h3 class="card-title" style="font-size:15px;"><i class="fas fa-venus-mars"></i> Sex Demographics</h3>
+            <div id="chart-analytics-gender" style="min-height: 240px; margin-top:16px;"></div>
+        </article>
+    </div>
+    
+    <!-- Bar Chart: Disease Outcomes count -->
+    <div class="col-lg-4 col-md-6">
+        <article class="glass-card h-100">
+            <h3 class="card-title" style="font-size:15px;"><i class="fas fa-heart-pulse"></i> Diagnostic Outcomes</h3>
+            <div id="chart-analytics-target" style="min-height: 240px; margin-top:16px;"></div>
+        </article>
+    </div>
+    
+    <!-- Line Chart: Averages Trends -->
+    <div class="col-lg-4 col-md-12">
+        <article class="glass-card h-100">
+            <h3 class="card-title" style="font-size:15px;"><i class="fas fa-chart-line"></i> Averages by Parameter</h3>
+            <div id="chart-analytics-trends" style="min-height: 240px; margin-top:16px;"></div>
+        </article>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- CORRELATION MATRIX -->
+    <div class="col-xl-8 col-lg-7">
+        <article class="glass-card h-100">
+            <h3 class="card-title"><i class="fas fa-grid"></i> Pearson Correlation Heatmap</h3>
+            <p style="color:var(--text-secondary); font-size:13px; margin-bottom: 24px;">
+                Pearson correlation coefficients ($r$) measure the linear strength between variables. Coefficients range from $-1.00$ (perfect inverse correlation) to $+1.00$ (perfect direct correlation).
+            </p>
+            
+            <div id="correlation-heatmap" style="min-height: 400px; width:100%;"></div>
+        </article>
+    </div>
+    
+    <!-- INSIGHTS SIDE PANEL -->
+    <div class="col-xl-4 col-lg-5">
+        <article class="glass-card h-100" style="display:flex; flex-direction:column; gap:20px;">
+            <h3 class="card-title"><i class="fas fa-lightbulb"></i> Correlation Insights</h3>
+            
+            <div style="font-size:13.5px; color:var(--text-secondary); display:flex; flex-direction:column; gap:16px;">
+                <div class="p-3" style="background:rgba(244, 63, 94, 0.04); border-left:3px solid var(--danger); border-radius: 0 var(--radius-md) var(--radius-md) 0;">
+                    <strong style="color:var(--text-primary); display:block; margin-bottom:4px;">Strong Positive Associations</strong>
+                    <p style="margin-bottom:0; font-size:12.5px; line-height:1.4;">
+                        Fluoroscopy vessel count (`CA`) and chest pain asymptomatic levels show positive correlations with target disease confirmation. Max vessels colored signifies advanced arterial blockages.
+                    </p>
+                </div>
+                
+                <div class="p-3" style="background:rgba(16, 185, 129, 0.04); border-left:3px solid var(--success); border-radius: 0 var(--radius-md) var(--radius-md) 0;">
+                    <strong style="color:var(--text-primary); display:block; margin-bottom:4px;">Inverse (Negative) Associations</strong>
+                    <p style="margin-bottom:0; font-size:12.5px; line-height:1.4;">
+                        Max Heart Rate Achieved (`THALACH`) shows a strong negative correlation with heart disease. A low maximum heart rate capacity is commonly associated with cardiac muscle exhaustion or coronary artery stress.
+                    </p>
+                </div>
+                
+                <div class="p-3" style="background:rgba(99, 102, 241, 0.04); border-left:3px solid var(--primary); border-radius: 0 var(--radius-md) var(--radius-md) 0;">
+                    <strong style="color:var(--text-primary); display:block; margin-bottom:4px;">Age-Related Variables</strong>
+                    <p style="margin-bottom:0; font-size:12.5px; line-height:1.4;">
+                        Age is positively associated with higher blood pressure (`TRESTBPS`) and higher vessel count (`CA`), reflecting physiological changes over time, though it has a low direct linear correlation with the binary target itself.
+                    </p>
+                </div>
+            </div>
+        </article>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if not empty %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        let textColor = isDark ? '#94a3b8' : '#64748b';
+        let gridColor = isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)';
+        
+        // Data calculations for Pie & Bar
+        const total = {{ stats.records_count }};
+        const malePct = {{ stats.male_percentage }};
+        const maleCount = Math.round(total * (malePct / 100));
+        const femaleCount = total - maleCount;
+        
+        const diseasePct = {{ stats.high_risk_percentage }};
+        const diseaseCount = Math.round(total * (diseasePct / 100));
+        const normalCount = total - diseaseCount;
+
+        // --- 1. PIE CHART: GENDER SPLIT ---
+        const genderOptions = {
+            series: [maleCount, femaleCount],
+            chart: { type: 'pie', height: 230, background: 'transparent' },
+            labels: ['Male', 'Female'],
+            colors: ['#3b82f6', '#ec4899'],
+            legend: { position: 'bottom', labels: { colors: textColor } },
+            dataLabels: { enabled: true, formatter: (val, opts) => opts.w.globals.series[opts.seriesIndex] },
+            theme: { mode: isDark ? 'dark' : 'light' }
+        };
+        const genderChart = new ApexCharts(document.querySelector("#chart-analytics-gender"), genderOptions);
+        genderChart.render();
+
+        // --- 2. BAR CHART: DISEASE OUTCOMES ---
+        const targetOptions = {
+            series: [{ name: 'Patients Count', data: [normalCount, diseaseCount] }],
+            chart: { type: 'bar', height: 230, background: 'transparent', toolbar: { show: false } },
+            plotOptions: { bar: { distributed: true, borderRadius: 6, columnWidth: '50%' } },
+            colors: ['#10b981', '#f43f5e'],
+            xaxis: { categories: ['Normal', 'Heart Disease'], labels: { style: { colors: textColor } } },
+            yaxis: { labels: { style: { colors: textColor } } },
+            grid: { borderColor: gridColor },
+            legend: { show: false },
+            theme: { mode: isDark ? 'dark' : 'light' }
+        };
+        const targetChart = new ApexCharts(document.querySelector("#chart-analytics-target"), targetOptions);
+        targetChart.render();
+
+        // --- 3. LINE CHART: STATISTICAL AVERAGES ---
+        const trendsOptions = {
+            series: [{ name: 'Clinical Averages', data: [{{ stats.avg_age }}, {{ stats.avg_trestbps }}, {{ stats.avg_chol }}, {{ stats.avg_thalach }}] }],
+            chart: { type: 'line', height: 230, background: 'transparent', toolbar: { show: false } },
+            colors: ['#a855f7'],
+            stroke: { curve: 'smooth', width: 3 },
+            markers: { size: 5 },
+            xaxis: { categories: ['Age (yrs)', 'BP (mmHg)', 'Chol (mg/dl)', 'Max HR (bpm)'], labels: { style: { colors: textColor } } },
+            yaxis: { labels: { style: { colors: textColor } } },
+            grid: { borderColor: gridColor },
+            theme: { mode: isDark ? 'dark' : 'light' }
+        };
+        const trendsChart = new ApexCharts(document.querySelector("#chart-analytics-trends"), trendsOptions);
+        trendsChart.render();
+
+        // --- 4. HEATMAP: PEARSON CORRELATION ---
+        const matrixData = {{ correlations.matrix | tojson }};
+        const variables = {{ correlations.variables | tojson }};
+        
+        const heatmapOptions = {
+            series: matrixData,
+            chart: { height: 420, type: 'heatmap', background: 'transparent', toolbar: { show: false } },
+            dataLabels: { enabled: true, style: { colors: ['#fff'] } },
+            plotOptions: {
+                heatmap: {
+                    enableShades: false,
+                    colorScale: {
+                        ranges: [
+                            { from: -1.0, to: -0.4, name: 'Strong Negative', color: '#0ea5e9' },
+                            { from: -0.399, to: -0.05, name: 'Weak Negative', color: '#38bdf8' },
+                            { from: -0.049, to: 0.049, name: 'No Correlation', color: '#94a3b8' },
+                            { from: 0.05, to: 0.399, name: 'Weak Positive', color: '#fca5a5' },
+                            { from: 0.4, to: 1.0, name: 'Strong Positive', color: '#f43f5e' }
+                        ]
+                    }
+                }
+            },
+            xaxis: { categories: variables, labels: { style: { colors: textColor, fontWeight: 700 } } },
+            yaxis: { labels: { style: { colors: textColor, fontWeight: 700 } } },
+            grid: { borderColor: gridColor },
+            tooltip: { y: { formatter: val => val.toFixed(3) } },
+            theme: { mode: isDark ? 'dark' : 'light' }
+        };
+        const heatmapChart = new ApexCharts(document.querySelector("#correlation-heatmap"), heatmapOptions);
+        heatmapChart.render();
+        
+        // Redraw all charts when theme changes
+        window.addEventListener('themeChanged', function() {
+            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+            textColor = isDark ? '#94a3b8' : '#64748b';
+            gridColor = isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)';
+            
+            genderChart.updateOptions({
+                legend: { labels: { colors: textColor } },
+                theme: { mode: isDark ? 'dark' : 'light' }
+            });
+            
+            targetChart.updateOptions({
+                xaxis: { labels: { style: { colors: textColor } } },
+                yaxis: { labels: { style: { colors: textColor } } },
+                grid: { borderColor: gridColor },
+                theme: { mode: isDark ? 'dark' : 'light' }
+            });
+            
+            trendsChart.updateOptions({
+                xaxis: { labels: { style: { colors: textColor } } },
+                yaxis: { labels: { style: { colors: textColor } } },
+                grid: { borderColor: gridColor },
+                theme: { mode: isDark ? 'dark' : 'light' }
+            });
+
+            heatmapChart.updateOptions({
+                xaxis: { labels: { style: { colors: textColor } } },
+                yaxis: { labels: { style: { colors: textColor } } },
+                grid: { borderColor: gridColor },
+                theme: { mode: isDark ? 'dark' : 'light' }
+            });
+        });
+    });
+</script>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+
+{% block title %}CardioSync - Heart Disease Risk Predictor{% endblock %}
+
+{% block page_title %}Risk Predictor{% endblock %}
+{% block page_subtitle %}Predict heart disease risk using patient physiological bio-markers.{% endblock %}
+
+{% block content %}
+<section class="predictor-layout">
+    <!-- LEFT SIDE: INPUT FORM -->
+    <article class="glass-card">
+        <h3 class="card-title"><i class="fas fa-notes-medical"></i> Patient Diagnostic Metrics</h3>
+        
+        <form id="predictor-form">
+            <div class="form-grid">
+                <!-- Age -->
+                <div class="form-group">
+                    <label for="age">Age (Years)</label>
+                    <input type="number" id="age" name="age" value="54" min="1" max="120" required>
+                </div>
+                
+                <!-- Sex -->
+                <div class="form-group">
+                    <label for="sex">Biological Sex</label>
+                    <select id="sex" name="sex" required>
+                        <option value="1">Male</option>
+                        <option value="0">Female</option>
+                    </select>
+                </div>
+                
+                <!-- Chest Pain Type -->
+                <div class="form-group">
+                    <label for="cp">Chest Pain Type</label>
+                    <select id="cp" name="cp" required>
+                        <option value="4">Asymptomatic (No typical pain)</option>
+                        <option value="3">Non-Anginal Pain</option>
+                        <option value="2">Atypical Angina</option>
+                        <option value="1">Typical Angina</option>
+                    </select>
+                </div>
+                
+                <!-- Resting Blood Pressure -->
+                <div class="form-group">
+                    <label for="trestbps">Resting Blood Pressure (mm Hg)</label>
+                    <input type="number" id="trestbps" name="trestbps" value="130" min="60" max="250" required>
+                </div>
+                
+                <!-- Cholesterol -->
+                <div class="form-group">
+                    <label for="chol">Serum Cholesterol (mg/dl)</label>
+                    <input type="number" id="chol" name="chol" value="240" min="80" max="600" required>
+                </div>
+                
+                <!-- Fasting Blood Sugar -->
+                <div class="form-group">
+                    <label for="fbs">Fasting Blood Sugar > 120 mg/dl</label>
+                    <select id="fbs" name="fbs" required>
+                        <option value="0">False (sugar <= 120)</option>
+                        <option value="1">True (sugar > 120)</option>
+                    </select>
+                </div>
+                
+                <!-- Resting ECG -->
+                <div class="form-group">
+                    <label for="restecg">Resting ECG Results</label>
+                    <select id="restecg" name="restecg" required>
+                        <option value="0">Normal</option>
+                        <option value="2">Left Ventricular Hypertrophy</option>
+                        <option value="1">ST-T Wave Abnormality</option>
+                    </select>
+                </div>
+                
+                <!-- Max Heart Rate -->
+                <div class="form-group">
+                    <label for="thalach">Max Heart Rate Achieved (bpm)</label>
+                    <input type="number" id="thalach" name="thalach" value="150" min="50" max="230" required>
+                </div>
+                
+                <!-- Exercise Induced Angina -->
+                <div class="form-group">
+                    <label for="exang">Exercise Induced Angina</label>
+                    <select id="exang" name="exang" required>
+                        <option value="0">No</option>
+                        <option value="1">Yes</option>
+                    </select>
+                </div>
+                
+                <!-- ST Depression -->
+                <div class="form-group">
+                    <label for="oldpeak">ST Depression (Oldpeak)</label>
+                    <input type="number" id="oldpeak" name="oldpeak" value="1.0" min="0.0" max="10.0" step="0.1" required>
+                </div>
+                
+                <!-- Slope of Peak Exercise -->
+                <div class="form-group">
+                    <label for="slope">Slope of Peak Exercise ST</label>
+                    <select id="slope" name="slope" required>
+                        <option value="1">Upsloping (Slope 1)</option>
+                        <option value="2">Flat (Slope 2)</option>
+                        <option value="3">Downsloping (Slope 3)</option>
+                    </select>
+                </div>
+                
+                <!-- Major Vessels Colored -->
+                <div class="form-group">
+                    <label for="ca">Vessels Colored by Fluoroscopy (0-3)</label>
+                    <select id="ca" name="ca" required>
+                        <option value="0">0 Vessels</option>
+                        <option value="1">1 Vessel</option>
+                        <option value="2">2 Vessels</option>
+                        <option value="3">3 Vessels</option>
+                    </select>
+                </div>
+                
+                <!-- Thalassemia -->
+                <div class="form-group">
+                    <label for="thal">Thalassemia (Thal)</label>
+                    <select id="thal" name="thal" required>
+                        <option value="3">Normal (Thal 3)</option>
+                        <option value="7">Reversible Defect (Thal 7)</option>
+                        <option value="6">Fixed Defect (Thal 6)</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="form-actions">
+                <button type="submit" class="submit-btn">
+                    <i class="fas fa-calculator"></i> Run Diagnostic Model
+                </button>
+            </div>
+        </form>
+    </article>
+    
+    <!-- RIGHT SIDE: RESULTS -->
+    <div style="display: flex; flex-direction: column;">
+        <article class="glass-card results-card">
+            <!-- Initial Placeholder -->
+            <div id="results-placeholder" style="text-align: center; padding: 40px 20px;">
+                <i class="fas fa-heartbeat" style="font-size: 70px; color: var(--text-muted); margin-bottom: 24px;"></i>
+                <h4 style="font-size: 20px; color: var(--text-primary); margin-bottom: 12px;">Awaiting Input Data</h4>
+                <p style="color: var(--text-secondary); font-size: 13.5px; max-width: 280px; margin: 0 auto;">
+                    Fill out the diagnostic questionnaire on the left and submit to evaluate cardiac disease probability.
+                </p>
+            </div>
+            
+            <!-- Result Content (Hidden Initially) -->
+            <div id="results-content" style="display: none; flex-direction: column; align-items: center; width: 100%;">
+                <h3 style="font-size:18px; font-weight:700; color:var(--text-primary); margin-bottom: 24px; text-transform:uppercase; letter-spacing:0.05em;">Prediction Analysis</h3>
+                
+                <!-- Circular Gauge -->
+                <div class="gauge-container">
+                    <svg class="gauge-circle" viewBox="0 0 200 200">
+                        <circle class="gauge-bg" cx="100" cy="100" r="90"></circle>
+                        <circle class="gauge-bar" id="gauge-bar" cx="100" cy="100" r="90"></circle>
+                    </svg>
+                    <div class="gauge-text">
+                        <div class="gauge-percentage" id="risk-value">0%</div>
+                        <div class="gauge-label">Risk Probability</div>
+                    </div>
+                </div>
+                
+                <!-- Risk Level Badge -->
+                <div id="risk-badge" class="risk-badge low">Low Risk</div>
+                
+                <!-- Medical Checklist Recommendations -->
+                <div style="border-top: 1px solid var(--border-color); width: 100%; padding-top: 24px; text-align: left;">
+                    <h5 style="font-size:12px; font-weight:700; color:var(--text-primary); text-transform:uppercase; margin-bottom: 12px; display:flex; align-items:center; gap:8px;">
+                        <i class="fas fa-clipboard-list" style="color:var(--primary);"></i> Recommendations
+                    </h5>
+                    <ul class="suggestions-list" id="suggestions-list">
+                        <!-- Populated by JS -->
+                    </ul>
+                </div>
+            </div>
+        </article>
+    </div>
+</section>
+{% endblock %}
